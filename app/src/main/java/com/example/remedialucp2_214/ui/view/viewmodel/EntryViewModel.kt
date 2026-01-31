@@ -21,6 +21,7 @@ data class EntryUiState(
     val kategoriList: List<Kategori> = emptyList(),
     val pengarangList: List<Pengarang> = emptyList(),
     val selectedPengarangIds: Set<Int> = emptySet(),
+    val newPengarangName: String = "",
     val isJudulError: Boolean = false,
     val isKategoriError: Boolean = false,
     val judulErrorMessage: String = "",
@@ -68,10 +69,35 @@ class EntryViewModel(
         _uiState.value = _uiState.value.copy(selectedKategoriId = kategoriId, isKategoriError = false, kategoriErrorMessage = "")
     }
 
+    fun updateNewPengarangName(name: String) {
+        _uiState.value = _uiState.value.copy(newPengarangName = name)
+    }
+
     fun togglePengarang(pengarangId: Int) {
         val current = _uiState.value.selectedPengarangIds.toMutableSet()
         if (current.contains(pengarangId)) current.remove(pengarangId) else current.add(pengarangId)
         _uiState.value = _uiState.value.copy(selectedPengarangIds = current)
+    }
+
+    fun addNewPengarang() {
+        val name = _uiState.value.newPengarangName.trim()
+        if (name.isBlank()) return
+        viewModelScope.launch {
+            val result = repositoriPengarang.insertPengarang(Pengarang(nama = name))
+            if (result.isSuccess) {
+                val newId = result.getOrNull()?.toInt() ?: 0
+                val currentSelected = _uiState.value.selectedPengarangIds.toMutableSet()
+                currentSelected.add(newId)
+                _uiState.value = _uiState.value.copy(
+                    newPengarangName = "",
+                    selectedPengarangIds = currentSelected
+                )
+            } else {
+                _uiState.value = _uiState.value.copy(
+                    errorMessage = result.exceptionOrNull()?.message ?: "Gagal menambah pengarang"
+                )
+            }
+        }
     }
 
     private fun validateInput(): Boolean {

@@ -22,6 +22,8 @@ data class DetailUiState(
     val kategoriList: List<Kategori> = emptyList(),
     val pengarangList: List<Pengarang> = emptyList(),
     val bukuPengarangList: List<Pengarang> = emptyList(),
+    val selectedPengarangIds: Set<Int> = emptySet(),
+    val newPengarangName: String = "",
     val eksemplarList: List<Eksemplar> = emptyList(),
     val editJudul: String = "",
     val editStatus: String = Buku.STATUS_TERSEDIA,
@@ -64,7 +66,10 @@ class DetailViewModel(
         }
         viewModelScope.launch {
             repositoriPengarang.getPengarangByBukuId(bukuId).collectLatest { list ->
-                _uiState.value = _uiState.value.copy(bukuPengarangList = list)
+                _uiState.value = _uiState.value.copy(
+                    bukuPengarangList = list,
+                    selectedPengarangIds = list.map { it.id }.toSet()
+                )
             }
         }
         viewModelScope.launch {
@@ -105,6 +110,37 @@ class DetailViewModel(
         _uiState.value = _uiState.value.copy(newEksemplarKode = kode)
     }
 
+    fun updateNewPengarangName(name: String) {
+        _uiState.value = _uiState.value.copy(newPengarangName = name)
+    }
+
+    fun togglePengarang(pengarangId: Int) {
+        val current = _uiState.value.selectedPengarangIds.toMutableSet()
+        if (current.contains(pengarangId)) current.remove(pengarangId) else current.add(pengarangId)
+        _uiState.value = _uiState.value.copy(selectedPengarangIds = current)
+    }
+
+    fun addNewPengarang() {
+        val name = _uiState.value.newPengarangName.trim()
+        if (name.isBlank()) return
+        viewModelScope.launch {
+            val result = repositoriPengarang.insertPengarang(Pengarang(nama = name))
+            if (result.isSuccess) {
+                val newId = result.getOrNull()?.toInt() ?: 0
+                val currentSelected = _uiState.value.selectedPengarangIds.toMutableSet()
+                currentSelected.add(newId)
+                _uiState.value = _uiState.value.copy(
+                    newPengarangName = "",
+                    selectedPengarangIds = currentSelected
+                )
+            } else {
+                _uiState.value = _uiState.value.copy(
+                    errorMessage = result.exceptionOrNull()?.message ?: "Gagal menambah pengarang"
+                )
+            }
+        }
+    }
+
     private fun validateEditInput(): Boolean {
         var valid = true
         val state = _uiState.value
@@ -132,7 +168,8 @@ class DetailViewModel(
             )
             val result = repositoriBuku.updateBuku(updatedBuku)
             if (result.isSuccess) {
-                _uiState.value = _uiState.value.copy(isSaving = false, isUpdated = true)
+                repositoriPengarang.setPengarangForBuku(currentBuku.id, state.selectedPengarangIds.toList())
+                _uiState.value = _uiState.value.copy(isSaving = false, isUpdated = true, successMessage = "Buku berhasil diupdate")
             } else {
                 _uiState.value = _uiState.value.copy(isSaving = false, errorMessage = result.exceptionOrNull()?.message ?: "Gagal mengupdate buku")
             }

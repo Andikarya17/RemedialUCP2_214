@@ -3,6 +3,8 @@ package com.example.remedialucp2_214.ui.view.uicontroller
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
@@ -12,15 +14,11 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.LazyRow
-import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Delete
-import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.MenuBook
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.material3.AlertDialog
@@ -29,10 +27,15 @@ import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.ExposedDropdownMenuBox
+import androidx.compose.material3.ExposedDropdownMenuDefaults
+import androidx.compose.material3.FilterChip
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.MenuAnchorType
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
@@ -50,15 +53,14 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.remedialucp2_214.R
 import com.example.remedialucp2_214.room.Buku
-import com.example.remedialucp2_214.room.BukuWithKategori
 import com.example.remedialucp2_214.room.Eksemplar
+import com.example.remedialucp2_214.room.Kategori
 import com.example.remedialucp2_214.room.Pengarang
 import com.example.remedialucp2_214.ui.view.route.DestinasiDetailBuku
 import com.example.remedialucp2_214.ui.view.viewmodel.DetailUiState
@@ -98,8 +100,14 @@ fun HalamanDetail(
     ) { innerPadding ->
         DetailContent(
             uiState = uiState,
-            onEditClick = { navigateToEdit(bukuId) },
             onDeleteClick = { showDeleteDialog = true },
+            onJudulChange = viewModel::updateEditJudul,
+            onStatusChange = viewModel::updateEditStatus,
+            onKategoriChange = viewModel::updateEditKategori,
+            onPengarangToggle = viewModel::togglePengarang,
+            onNewPengarangNameChange = viewModel::updateNewPengarangName,
+            onAddNewPengarang = viewModel::addNewPengarang,
+            onSaveClick = viewModel::updateBuku,
             onAddEksemplar = viewModel::addEksemplar,
             onNewKodeChange = viewModel::updateNewEksemplarKode,
             onPinjam = viewModel::pinjamEksemplar,
@@ -110,11 +118,18 @@ fun HalamanDetail(
     }
 }
 
+@OptIn(ExperimentalLayoutApi::class)
 @Composable
 private fun DetailContent(
     uiState: DetailUiState,
-    onEditClick: () -> Unit,
     onDeleteClick: () -> Unit,
+    onJudulChange: (String) -> Unit,
+    onStatusChange: (String) -> Unit,
+    onKategoriChange: (Int?) -> Unit,
+    onPengarangToggle: (Int) -> Unit,
+    onNewPengarangNameChange: (String) -> Unit,
+    onAddNewPengarang: () -> Unit,
+    onSaveClick: () -> Unit,
     onAddEksemplar: () -> Unit,
     onNewKodeChange: (String) -> Unit,
     onPinjam: (Int) -> Unit,
@@ -127,8 +142,17 @@ private fun DetailContent(
         uiState.bukuWithKategori == null -> Box(modifier, contentAlignment = Alignment.Center) { Text(stringResource(R.string.msg_data_kosong)) }
         else -> {
             LazyColumn(modifier = modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(16.dp)) {
-                item { BukuDetailCard(uiState.bukuWithKategori, uiState.bukuPengarangList) }
-                item { ActionButtons(onEditClick, onDeleteClick) }
+                item {
+                    EditBukuCard(
+                        uiState = uiState,
+                        onJudulChange = onJudulChange,
+                        onKategoriChange = onKategoriChange,
+                        onPengarangToggle = onPengarangToggle,
+                        onNewPengarangNameChange = onNewPengarangNameChange,
+                        onAddNewPengarang = onAddNewPengarang
+                    )
+                }
+                item { ActionButtons(onSaveClick, onDeleteClick, uiState.isSaving) }
                 item {
                     EksemplarSection(
                         eksemplarList = uiState.eksemplarList,
@@ -140,43 +164,98 @@ private fun DetailContent(
                         onDelete = onDeleteEksemplar
                     )
                 }
-                if (uiState.bukuWithKategori.buku.auditLogBefore.isNotEmpty()) {
-                    item { AuditLogCard(uiState.bukuWithKategori.buku) }
-                }
             }
         }
     }
 }
 
+@OptIn(ExperimentalLayoutApi::class, ExperimentalMaterial3Api::class)
 @Composable
-private fun BukuDetailCard(bukuWithKategori: BukuWithKategori, pengarangList: List<Pengarang>) {
-    val buku = bukuWithKategori.buku
-    val kategori = bukuWithKategori.kategori
+private fun EditBukuCard(
+    uiState: DetailUiState,
+    onJudulChange: (String) -> Unit,
+    onKategoriChange: (Int?) -> Unit,
+    onPengarangToggle: (Int) -> Unit,
+    onNewPengarangNameChange: (String) -> Unit,
+    onAddNewPengarang: () -> Unit
+) {
+    var expanded by remember { mutableStateOf(false) }
+    val selectedLabel = uiState.kategoriList.find { it.id == uiState.editKategoriId }?.namaKategori ?: ""
 
     Card(Modifier.fillMaxWidth(), shape = RoundedCornerShape(16.dp), elevation = CardDefaults.cardElevation(4.dp)) {
-        Column(Modifier.padding(20.dp)) {
+        Column(Modifier.padding(20.dp), verticalArrangement = Arrangement.spacedBy(16.dp)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
-                Surface(shape = RoundedCornerShape(12.dp), color = MaterialTheme.colorScheme.primaryContainer, modifier = Modifier.size(56.dp)) {
-                    Icon(Icons.Default.MenuBook, contentDescription = null, modifier = Modifier.padding(14.dp), tint = MaterialTheme.colorScheme.onPrimaryContainer)
+                Surface(shape = RoundedCornerShape(12.dp), color = MaterialTheme.colorScheme.primaryContainer, modifier = Modifier.size(48.dp)) {
+                    Icon(Icons.Default.MenuBook, contentDescription = null, modifier = Modifier.padding(12.dp), tint = MaterialTheme.colorScheme.onPrimaryContainer)
                 }
                 Spacer(Modifier.width(16.dp))
-                Column {
-                    Text(buku.judul, style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
-                    Text(kategori?.namaKategori ?: "-", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                Text("Edit Buku", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
+            }
+
+            OutlinedTextField(
+                value = uiState.editJudul,
+                onValueChange = onJudulChange,
+                label = { Text(stringResource(R.string.label_judul)) },
+                isError = uiState.isJudulError,
+                supportingText = { if (uiState.isJudulError) Text(uiState.judulErrorMessage) },
+                singleLine = true,
+                shape = RoundedCornerShape(12.dp),
+                modifier = Modifier.fillMaxWidth()
+            )
+
+            ExposedDropdownMenuBox(expanded = expanded, onExpandedChange = { expanded = it }) {
+                OutlinedTextField(
+                    value = selectedLabel,
+                    onValueChange = {},
+                    readOnly = true,
+                    label = { Text(stringResource(R.string.label_kategori)) },
+                    trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded) },
+                    isError = uiState.isKategoriError,
+                    supportingText = { if (uiState.isKategoriError) Text(uiState.kategoriErrorMessage) },
+                    shape = RoundedCornerShape(12.dp),
+                    modifier = Modifier.menuAnchor(MenuAnchorType.PrimaryNotEditable).fillMaxWidth()
+                )
+                ExposedDropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
+                    uiState.kategoriList.forEach { kategori ->
+                        DropdownMenuItem(
+                            text = { Text(kategori.namaKategori) },
+                            onClick = { onKategoriChange(kategori.id); expanded = false }
+                        )
+                    }
                 }
             }
-            if (pengarangList.isNotEmpty()) {
-                Spacer(Modifier.height(16.dp))
-                Text("Pengarang:", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+
+            Column {
+                Text("Pengarang", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Medium)
                 Spacer(Modifier.height(8.dp))
-                LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    items(pengarangList) { p ->
-                        Surface(shape = RoundedCornerShape(8.dp), color = MaterialTheme.colorScheme.secondaryContainer) {
-                            Row(Modifier.padding(horizontal = 10.dp, vertical = 6.dp), verticalAlignment = Alignment.CenterVertically) {
-                                Icon(Icons.Default.Person, contentDescription = null, modifier = Modifier.size(16.dp), tint = MaterialTheme.colorScheme.onSecondaryContainer)
-                                Spacer(Modifier.width(4.dp))
-                                Text(p.nama, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSecondaryContainer)
-                            }
+                Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                    OutlinedTextField(
+                        value = uiState.newPengarangName,
+                        onValueChange = onNewPengarangNameChange,
+                        label = { Text("Nama pengarang baru") },
+                        singleLine = true,
+                        shape = RoundedCornerShape(12.dp),
+                        modifier = Modifier.weight(1f)
+                    )
+                    Spacer(Modifier.width(8.dp))
+                    IconButton(onClick = onAddNewPengarang) {
+                        Icon(Icons.Default.Add, contentDescription = "Tambah", tint = MaterialTheme.colorScheme.primary)
+                    }
+                }
+                if (uiState.pengarangList.isNotEmpty()) {
+                    Spacer(Modifier.height(12.dp))
+                    Text("Pilih pengarang:", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    Spacer(Modifier.height(8.dp))
+                    FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                        uiState.pengarangList.forEach { p ->
+                            val isSelected = uiState.selectedPengarangIds.contains(p.id)
+                            FilterChip(
+                                selected = isSelected,
+                                onClick = { onPengarangToggle(p.id) },
+                                label = { Text(p.nama) },
+                                leadingIcon = { Icon(Icons.Default.Person, contentDescription = null, modifier = Modifier.size(16.dp)) },
+                                trailingIcon = if (isSelected) {{ Icon(Icons.Default.Check, contentDescription = null, modifier = Modifier.size(16.dp)) }} else null
+                            )
                         }
                     }
                 }
@@ -186,10 +265,10 @@ private fun BukuDetailCard(bukuWithKategori: BukuWithKategori, pengarangList: Li
 }
 
 @Composable
-private fun ActionButtons(onEditClick: () -> Unit, onDeleteClick: () -> Unit) {
+private fun ActionButtons(onSaveClick: () -> Unit, onDeleteClick: () -> Unit, isSaving: Boolean) {
     Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-        OutlinedButton(onClick = onEditClick, shape = RoundedCornerShape(12.dp), modifier = Modifier.weight(1f)) {
-            Icon(Icons.Default.Edit, contentDescription = null); Spacer(Modifier.width(8.dp)); Text(stringResource(R.string.btn_edit))
+        Button(onClick = onSaveClick, enabled = !isSaving, shape = RoundedCornerShape(12.dp), modifier = Modifier.weight(1f)) {
+            Text(if (isSaving) stringResource(R.string.loading) else stringResource(R.string.btn_simpan))
         }
         Button(onClick = onDeleteClick, shape = RoundedCornerShape(12.dp), colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.error), modifier = Modifier.weight(1f)) {
             Icon(Icons.Default.Delete, contentDescription = null); Spacer(Modifier.width(8.dp)); Text(stringResource(R.string.btn_hapus))
@@ -251,21 +330,6 @@ private fun EksemplarItem(eksemplar: Eksemplar, onPinjam: () -> Unit, onKembalik
             IconButton(onClick = onDelete) {
                 Icon(Icons.Default.Delete, contentDescription = "Hapus", tint = MaterialTheme.colorScheme.error, modifier = Modifier.size(20.dp))
             }
-        }
-    }
-}
-
-@Composable
-private fun AuditLogCard(buku: Buku) {
-    Card(Modifier.fillMaxWidth(), shape = RoundedCornerShape(12.dp), colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)) {
-        Column(Modifier.padding(16.dp)) {
-            Text("Audit Log", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold)
-            Spacer(Modifier.height(12.dp))
-            Text("Before:", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-            Text(buku.auditLogBefore, style = MaterialTheme.typography.bodySmall)
-            Spacer(Modifier.height(8.dp))
-            Text("After:", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-            Text(buku.auditLogAfter, style = MaterialTheme.typography.bodySmall)
         }
     }
 }

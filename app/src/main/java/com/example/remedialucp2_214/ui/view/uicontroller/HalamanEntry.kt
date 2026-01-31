@@ -18,6 +18,7 @@ import androidx.compose.foundation.selection.selectableGroup
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.material3.Button
@@ -29,6 +30,7 @@ import androidx.compose.material3.ExposedDropdownMenuBox
 import androidx.compose.material3.ExposedDropdownMenuDefaults
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.MenuAnchorType
 import androidx.compose.material3.OutlinedTextField
@@ -54,7 +56,6 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.remedialucp2_214.R
 import com.example.remedialucp2_214.room.Buku
 import com.example.remedialucp2_214.room.Kategori
-import com.example.remedialucp2_214.room.Pengarang
 import com.example.remedialucp2_214.ui.view.route.DestinasiEntry
 import com.example.remedialucp2_214.ui.view.viewmodel.EntryUiState
 import com.example.remedialucp2_214.ui.view.viewmodel.EntryViewModel
@@ -85,6 +86,8 @@ fun HalamanEntry(
             onStatusChange = viewModel::updateStatus,
             onKategoriChange = viewModel::updateKategori,
             onPengarangToggle = viewModel::togglePengarang,
+            onNewPengarangNameChange = viewModel::updateNewPengarangName,
+            onAddNewPengarang = viewModel::addNewPengarang,
             onSaveClick = viewModel::saveBuku,
             modifier = Modifier.padding(innerPadding).fillMaxSize().verticalScroll(rememberScrollState())
         )
@@ -99,6 +102,8 @@ private fun EntryForm(
     onStatusChange: (String) -> Unit,
     onKategoriChange: (Int?) -> Unit,
     onPengarangToggle: (Int) -> Unit,
+    onNewPengarangNameChange: (String) -> Unit,
+    onAddNewPengarang: () -> Unit,
     onSaveClick: () -> Unit,
     modifier: Modifier = Modifier
 ) {
@@ -133,18 +138,39 @@ private fun EntryForm(
                 )
 
                 Column {
-                    Text("Pengarang (Pilih satu atau lebih)", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Medium)
+                    Text("Pengarang", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Medium)
                     Spacer(Modifier.height(8.dp))
-                    FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                        uiState.pengarangList.forEach { p ->
-                            val isSelected = uiState.selectedPengarangIds.contains(p.id)
-                            FilterChip(
-                                selected = isSelected,
-                                onClick = { onPengarangToggle(p.id) },
-                                label = { Text(p.nama) },
-                                leadingIcon = { Icon(Icons.Default.Person, contentDescription = null, modifier = Modifier.size(16.dp)) },
-                                trailingIcon = if (isSelected) {{ Icon(Icons.Default.Check, contentDescription = null, modifier = Modifier.size(16.dp)) }} else null
-                            )
+
+                    Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                        OutlinedTextField(
+                            value = uiState.newPengarangName,
+                            onValueChange = onNewPengarangNameChange,
+                            label = { Text("Nama pengarang baru") },
+                            singleLine = true,
+                            shape = RoundedCornerShape(12.dp),
+                            modifier = Modifier.weight(1f)
+                        )
+                        Spacer(Modifier.width(8.dp))
+                        IconButton(onClick = onAddNewPengarang) {
+                            Icon(Icons.Default.Add, contentDescription = "Tambah pengarang", tint = MaterialTheme.colorScheme.primary)
+                        }
+                    }
+
+                    if (uiState.pengarangList.isNotEmpty()) {
+                        Spacer(Modifier.height(12.dp))
+                        Text("Pilih pengarang:", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        Spacer(Modifier.height(8.dp))
+                        FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                            uiState.pengarangList.forEach { p ->
+                                val isSelected = uiState.selectedPengarangIds.contains(p.id)
+                                FilterChip(
+                                    selected = isSelected,
+                                    onClick = { onPengarangToggle(p.id) },
+                                    label = { Text(p.nama) },
+                                    leadingIcon = { Icon(Icons.Default.Person, contentDescription = null, modifier = Modifier.size(16.dp)) },
+                                    trailingIcon = if (isSelected) {{ Icon(Icons.Default.Check, contentDescription = null, modifier = Modifier.size(16.dp)) }} else null
+                                )
+                            }
                         }
                     }
                 }
