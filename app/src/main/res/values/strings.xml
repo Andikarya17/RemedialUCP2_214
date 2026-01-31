@@ -1,3 +1,67 @@
+<?xml version="1.0" encoding="utf-8"?>
 <resources>
+    <!-- App -->
     <string name="app_name">RemedialUCP2_214</string>
+    
+    <!-- Navigation Titles -->
+    <string name="halaman_home">Daftar Buku</string>
+    <string name="halaman_entry">Tambah Buku</string>
+    <string name="halaman_detail">Detail Buku</string>
+    <string name="halaman_edit">Edit Buku</string>
+    <string name="halaman_kategori">Kelola Kategori</string>
+    
+    <!-- Form Labels -->
+    <string name="label_judul">Judul Buku</string>
+    <string name="label_status">Status</string>
+    <string name="label_kategori">Kategori</string>
+    <string name="label_parent_kategori">Kategori Induk</string>
+    <string name="label_nama_kategori">Nama Kategori</string>
+    
+    <!-- Status Options -->
+    <string name="status_tersedia">Tersedia</string>
+    <string name="status_dipinjam">Dipinjam</string>
+    
+    <!-- Buttons -->
+    <string name="btn_simpan">Simpan</string>
+    <string name="btn_update">Update</string>
+    <string name="btn_hapus">Hapus</string>
+    <string name="btn_edit">Edit</string>
+    <string name="btn_batal">Batal</string>
+    <string name="btn_tambah_buku">Tambah Buku</string>
+    <string name="btn_tambah_kategori">Tambah Kategori</string>
+    <string name="btn_kelola_kategori">Kelola Kategori</string>
+    
+    <!-- Dialog -->
+    <string name="dialog_konfirmasi_hapus">Konfirmasi Hapus</string>
+    <string name="dialog_hapus_buku_msg">Apakah Anda yakin ingin menghapus buku ini?</string>
+    <string name="dialog_hapus_kategori_msg">Apakah Anda yakin ingin menghapus kategori ini?</string>
+    <string name="dialog_pilih_aksi">Pilih Aksi untuk Buku</string>
+    <string name="dialog_aksi_soft_delete">Hapus buku (soft delete)</string>
+    <string name="dialog_aksi_pindah_kategori">Pindahkan ke Tanpa Kategori</string>
+    
+    <!-- Messages -->
+    <string name="msg_berhasil_simpan">Data berhasil disimpan</string>
+    <string name="msg_berhasil_update">Data berhasil diupdate</string>
+    <string name="msg_berhasil_hapus">Data berhasil dihapus</string>
+    <string name="msg_gagal_hapus_dipinjam">Tidak dapat menghapus kategori. Masih ada buku yang dipinjam.</string>
+    <string name="msg_data_kosong">Belum ada data</string>
+    <string name="msg_buku_kosong">Belum ada buku</string>
+    <string name="msg_kategori_kosong">Belum ada kategori</string>
+    
+    <!-- Validation -->
+    <string name="validasi_judul_kosong">Judul tidak boleh kosong</string>
+    <string name="validasi_kategori_kosong">Kategori harus dipilih</string>
+    <string name="validasi_nama_kategori_kosong">Nama kategori tidak boleh kosong</string>
+    <string name="validasi_cyclic_reference">Tidak dapat memilih kategori ini sebagai parent (akan membentuk loop)</string>
+    
+    <!-- Filter -->
+    <string name="filter_semua_kategori">Semua Kategori</string>
+    
+    <!-- Default Category -->
+    <string name="kategori_tanpa_kategori">Tanpa Kategori</string>
+    
+    <!-- Misc -->
+    <string name="kembali">Kembali</string>
+    <string name="loading">Memuat…</string>
+    <string name="tidak_ada_parent">Tidak Ada Parent</string>
 </resources>
