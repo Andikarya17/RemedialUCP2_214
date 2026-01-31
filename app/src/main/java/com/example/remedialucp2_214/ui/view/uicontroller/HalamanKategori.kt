@@ -58,6 +58,7 @@ import com.example.remedialucp2_214.ui.view.viewmodel.DeleteKategoriState
 import com.example.remedialucp2_214.ui.view.viewmodel.KategoriUiState
 import com.example.remedialucp2_214.ui.view.viewmodel.KategoriViewModel
 import com.example.remedialucp2_214.ui.view.viewmodel.provider.ViewModelProvider
+import androidx.compose.ui.unit.dp
 
 /**
  * Halaman Kelola Kategori - CRUD kategori dengan hierarki

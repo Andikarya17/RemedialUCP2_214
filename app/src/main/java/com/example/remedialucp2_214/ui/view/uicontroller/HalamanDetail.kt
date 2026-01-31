@@ -50,6 +50,7 @@ import com.example.remedialucp2_214.ui.view.route.DestinasiDetailBuku
 import com.example.remedialucp2_214.ui.view.viewmodel.DetailUiState
 import com.example.remedialucp2_214.ui.view.viewmodel.DetailViewModel
 import com.example.remedialucp2_214.ui.view.viewmodel.provider.ViewModelProvider
+import androidx.compose.ui.unit.dp
 
 /**
  * Halaman Detail - menampilkan detail buku
