@@ -9,12 +9,20 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyRow
+import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Edit
+import androidx.compose.material.icons.filled.MenuBook
+import androidx.compose.material.icons.filled.Person
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
@@ -23,11 +31,14 @@ import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -39,22 +50,21 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.res.dimensionResource
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.remedialucp2_214.R
 import com.example.remedialucp2_214.room.Buku
 import com.example.remedialucp2_214.room.BukuWithKategori
+import com.example.remedialucp2_214.room.Eksemplar
+import com.example.remedialucp2_214.room.Pengarang
 import com.example.remedialucp2_214.ui.view.route.DestinasiDetailBuku
 import com.example.remedialucp2_214.ui.view.viewmodel.DetailUiState
 import com.example.remedialucp2_214.ui.view.viewmodel.DetailViewModel
 import com.example.remedialucp2_214.ui.view.viewmodel.provider.ViewModelProvider
-import androidx.compose.ui.unit.dp
 
-/**
- * Halaman Detail - menampilkan detail buku
- */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun HalamanDetail(
@@ -68,284 +78,206 @@ fun HalamanDetail(
     val snackbarHostState = remember { SnackbarHostState() }
     var showDeleteDialog by remember { mutableStateOf(false) }
 
-    // Load buku saat pertama kali
-    LaunchedEffect(bukuId) {
-        viewModel.loadBuku(bukuId)
+    LaunchedEffect(bukuId) { viewModel.loadBuku(bukuId) }
+    LaunchedEffect(uiState.isDeleted) { if (uiState.isDeleted) navigateBack() }
+    LaunchedEffect(uiState.errorMessage, uiState.successMessage) {
+        uiState.errorMessage?.let { snackbarHostState.showSnackbar(it); viewModel.clearMessages() }
+        uiState.successMessage?.let { snackbarHostState.showSnackbar(it); viewModel.clearMessages() }
     }
 
-    // Navigate back setelah delete
-    LaunchedEffect(uiState.isDeleted) {
-        if (uiState.isDeleted) {
-            navigateBack()
-        }
-    }
-
-    // Show error snackbar
-    LaunchedEffect(uiState.errorMessage) {
-        uiState.errorMessage?.let {
-            snackbarHostState.showSnackbar(it)
-            viewModel.clearError()
-        }
-    }
-
-    // Delete confirmation dialog
     if (showDeleteDialog) {
         DeleteConfirmationDialog(
-            onConfirm = {
-                showDeleteDialog = false
-                viewModel.deleteBuku()
-            },
+            onConfirm = { showDeleteDialog = false; viewModel.deleteBuku() },
             onDismiss = { showDeleteDialog = false }
         )
     }
 
     Scaffold(
-        topBar = {
-            AppBar(
-                titleRes = DestinasiDetailBuku.titleRes,
-                canNavigateBack = true,
-                navigateUp = navigateBack
-            )
-        },
-        snackbarHost = { SnackbarHost(hostState = snackbarHostState) }
+        topBar = { AppBar(titleRes = DestinasiDetailBuku.titleRes, canNavigateBack = true, navigateUp = navigateBack) },
+        snackbarHost = { SnackbarHost(snackbarHostState) }
     ) { innerPadding ->
         DetailContent(
             uiState = uiState,
             onEditClick = { navigateToEdit(bukuId) },
             onDeleteClick = { showDeleteDialog = true },
-            modifier = Modifier
-                .padding(innerPadding)
-                .fillMaxSize()
+            onAddEksemplar = viewModel::addEksemplar,
+            onNewKodeChange = viewModel::updateNewEksemplarKode,
+            onPinjam = viewModel::pinjamEksemplar,
+            onKembalikan = viewModel::kembalikanEksemplar,
+            onDeleteEksemplar = viewModel::deleteEksemplar,
+            modifier = Modifier.padding(innerPadding).fillMaxSize()
         )
     }
 }
 
-/**
- * Konten detail buku
- */
 @Composable
 private fun DetailContent(
     uiState: DetailUiState,
     onEditClick: () -> Unit,
     onDeleteClick: () -> Unit,
+    onAddEksemplar: () -> Unit,
+    onNewKodeChange: (String) -> Unit,
+    onPinjam: (Int) -> Unit,
+    onKembalikan: (Int) -> Unit,
+    onDeleteEksemplar: (Int) -> Unit,
     modifier: Modifier = Modifier
 ) {
-    if (uiState.isLoading) {
-        Box(
-            modifier = modifier,
-            contentAlignment = Alignment.Center
-        ) {
-            CircularProgressIndicator()
-        }
-        return
-    }
-
-    val bukuWithKategori = uiState.bukuWithKategori
-    if (bukuWithKategori == null) {
-        Box(
-            modifier = modifier,
-            contentAlignment = Alignment.Center
-        ) {
-            Text(
-                text = stringResource(R.string.msg_data_kosong),
-                style = MaterialTheme.typography.bodyLarge
-            )
-        }
-        return
-    }
-
-    Column(
-        modifier = modifier
-            .padding(dimensionResource(R.dimen.padding_medium))
-            .verticalScroll(rememberScrollState()),
-        verticalArrangement = Arrangement.spacedBy(dimensionResource(R.dimen.spacing_medium))
-    ) {
-        // Card detail buku
-        BukuDetailCard(bukuWithKategori = bukuWithKategori)
-
-        Spacer(modifier = Modifier.height(dimensionResource(R.dimen.spacing_medium)))
-
-        // Action buttons
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.spacedBy(dimensionResource(R.dimen.spacing_medium))
-        ) {
-            OutlinedButton(
-                onClick = onEditClick,
-                modifier = Modifier.weight(1f)
-            ) {
-                Icon(
-                    imageVector = Icons.Default.Edit,
-                    contentDescription = null
-                )
-                Spacer(modifier = Modifier.width(8.dp))
-                Text(stringResource(R.string.btn_edit))
+    when {
+        uiState.isLoading -> Box(modifier, contentAlignment = Alignment.Center) { CircularProgressIndicator() }
+        uiState.bukuWithKategori == null -> Box(modifier, contentAlignment = Alignment.Center) { Text(stringResource(R.string.msg_data_kosong)) }
+        else -> {
+            LazyColumn(modifier = modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(16.dp)) {
+                item { BukuDetailCard(uiState.bukuWithKategori, uiState.bukuPengarangList) }
+                item { ActionButtons(onEditClick, onDeleteClick) }
+                item {
+                    EksemplarSection(
+                        eksemplarList = uiState.eksemplarList,
+                        newKode = uiState.newEksemplarKode,
+                        onNewKodeChange = onNewKodeChange,
+                        onAddClick = onAddEksemplar,
+                        onPinjam = onPinjam,
+                        onKembalikan = onKembalikan,
+                        onDelete = onDeleteEksemplar
+                    )
+                }
+                if (uiState.bukuWithKategori.buku.auditLogBefore.isNotEmpty()) {
+                    item { AuditLogCard(uiState.bukuWithKategori.buku) }
+                }
             }
-
-            Button(
-                onClick = onDeleteClick,
-                colors = ButtonDefaults.buttonColors(
-                    containerColor = MaterialTheme.colorScheme.error
-                ),
-                modifier = Modifier.weight(1f)
-            ) {
-                Icon(
-                    imageVector = Icons.Default.Delete,
-                    contentDescription = null
-                )
-                Spacer(modifier = Modifier.width(8.dp))
-                Text(stringResource(R.string.btn_hapus))
-            }
-        }
-
-        // Audit log (jika ada)
-        if (bukuWithKategori.buku.auditLogBefore.isNotEmpty()) {
-            Spacer(modifier = Modifier.height(dimensionResource(R.dimen.spacing_medium)))
-            AuditLogSection(buku = bukuWithKategori.buku)
         }
     }
 }
 
-/**
- * Card menampilkan detail buku
- */
 @Composable
-private fun BukuDetailCard(
-    bukuWithKategori: BukuWithKategori,
-    modifier: Modifier = Modifier
-) {
+private fun BukuDetailCard(bukuWithKategori: BukuWithKategori, pengarangList: List<Pengarang>) {
     val buku = bukuWithKategori.buku
     val kategori = bukuWithKategori.kategori
 
-    Card(
-        modifier = modifier.fillMaxWidth(),
-        elevation = CardDefaults.cardElevation(defaultElevation = 4.dp)
-    ) {
-        Column(
-            modifier = Modifier.padding(dimensionResource(R.dimen.padding_medium)),
-            verticalArrangement = Arrangement.spacedBy(dimensionResource(R.dimen.spacing_medium))
-        ) {
-            DetailRow(
-                label = stringResource(R.string.label_judul),
-                value = buku.judul
-            )
-
-            DetailRow(
-                label = stringResource(R.string.label_status),
-                value = if (buku.status == Buku.STATUS_TERSEDIA) {
-                    stringResource(R.string.status_tersedia)
-                } else {
-                    stringResource(R.string.status_dipinjam)
-                },
-                valueColor = if (buku.status == Buku.STATUS_TERSEDIA) {
-                    MaterialTheme.colorScheme.primary
-                } else {
-                    MaterialTheme.colorScheme.error
+    Card(Modifier.fillMaxWidth(), shape = RoundedCornerShape(16.dp), elevation = CardDefaults.cardElevation(4.dp)) {
+        Column(Modifier.padding(20.dp)) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Surface(shape = RoundedCornerShape(12.dp), color = MaterialTheme.colorScheme.primaryContainer, modifier = Modifier.size(56.dp)) {
+                    Icon(Icons.Default.MenuBook, contentDescription = null, modifier = Modifier.padding(14.dp), tint = MaterialTheme.colorScheme.onPrimaryContainer)
                 }
-            )
-
-            DetailRow(
-                label = stringResource(R.string.label_kategori),
-                value = kategori?.namaKategori ?: "-"
-            )
+                Spacer(Modifier.width(16.dp))
+                Column {
+                    Text(buku.judul, style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
+                    Text(kategori?.namaKategori ?: "-", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                }
+            }
+            if (pengarangList.isNotEmpty()) {
+                Spacer(Modifier.height(16.dp))
+                Text("Pengarang:", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                Spacer(Modifier.height(8.dp))
+                LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    items(pengarangList) { p ->
+                        Surface(shape = RoundedCornerShape(8.dp), color = MaterialTheme.colorScheme.secondaryContainer) {
+                            Row(Modifier.padding(horizontal = 10.dp, vertical = 6.dp), verticalAlignment = Alignment.CenterVertically) {
+                                Icon(Icons.Default.Person, contentDescription = null, modifier = Modifier.size(16.dp), tint = MaterialTheme.colorScheme.onSecondaryContainer)
+                                Spacer(Modifier.width(4.dp))
+                                Text(p.nama, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSecondaryContainer)
+                            }
+                        }
+                    }
+                }
+            }
         }
     }
 }
 
-/**
- * Row untuk menampilkan label dan value
- */
 @Composable
-private fun DetailRow(
-    label: String,
-    value: String,
-    modifier: Modifier = Modifier,
-    valueColor: androidx.compose.ui.graphics.Color = MaterialTheme.colorScheme.onSurface
-) {
-    Column(modifier = modifier) {
-        Text(
-            text = label,
-            style = MaterialTheme.typography.labelMedium,
-            color = MaterialTheme.colorScheme.onSurfaceVariant
-        )
-        Text(
-            text = value,
-            style = MaterialTheme.typography.bodyLarge,
-            fontWeight = FontWeight.Medium,
-            color = valueColor
-        )
-    }
-}
-
-/**
- * Section untuk menampilkan audit log
- */
-@Composable
-private fun AuditLogSection(
-    buku: Buku,
-    modifier: Modifier = Modifier
-) {
-    Card(
-        modifier = modifier.fillMaxWidth(),
-        colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.surfaceVariant
-        )
-    ) {
-        Column(
-            modifier = Modifier.padding(dimensionResource(R.dimen.padding_medium))
-        ) {
-            Text(
-                text = "Audit Log",
-                style = MaterialTheme.typography.titleSmall,
-                fontWeight = FontWeight.Bold
-            )
-            
-            Spacer(modifier = Modifier.height(8.dp))
-            
-            Text(
-                text = "Before:",
-                style = MaterialTheme.typography.labelSmall
-            )
-            Text(
-                text = buku.auditLogBefore,
-                style = MaterialTheme.typography.bodySmall
-            )
-            
-            Spacer(modifier = Modifier.height(4.dp))
-            
-            Text(
-                text = "After:",
-                style = MaterialTheme.typography.labelSmall
-            )
-            Text(
-                text = buku.auditLogAfter,
-                style = MaterialTheme.typography.bodySmall
-            )
+private fun ActionButtons(onEditClick: () -> Unit, onDeleteClick: () -> Unit) {
+    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+        OutlinedButton(onClick = onEditClick, shape = RoundedCornerShape(12.dp), modifier = Modifier.weight(1f)) {
+            Icon(Icons.Default.Edit, contentDescription = null); Spacer(Modifier.width(8.dp)); Text(stringResource(R.string.btn_edit))
+        }
+        Button(onClick = onDeleteClick, shape = RoundedCornerShape(12.dp), colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.error), modifier = Modifier.weight(1f)) {
+            Icon(Icons.Default.Delete, contentDescription = null); Spacer(Modifier.width(8.dp)); Text(stringResource(R.string.btn_hapus))
         }
     }
 }
 
-/**
- * Dialog konfirmasi hapus
- */
 @Composable
-private fun DeleteConfirmationDialog(
-    onConfirm: () -> Unit,
-    onDismiss: () -> Unit
+private fun EksemplarSection(
+    eksemplarList: List<Eksemplar>,
+    newKode: String,
+    onNewKodeChange: (String) -> Unit,
+    onAddClick: () -> Unit,
+    onPinjam: (Int) -> Unit,
+    onKembalikan: (Int) -> Unit,
+    onDelete: (Int) -> Unit
 ) {
+    Card(Modifier.fillMaxWidth(), shape = RoundedCornerShape(16.dp), elevation = CardDefaults.cardElevation(2.dp)) {
+        Column(Modifier.padding(16.dp)) {
+            Text("Eksemplar Fisik (${eksemplarList.size})", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+            Spacer(Modifier.height(12.dp))
+            Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                OutlinedTextField(
+                    value = newKode,
+                    onValueChange = onNewKodeChange,
+                    label = { Text("Kode Eksemplar") },
+                    singleLine = true,
+                    shape = RoundedCornerShape(12.dp),
+                    modifier = Modifier.weight(1f)
+                )
+                Spacer(Modifier.width(8.dp))
+                IconButton(onClick = onAddClick) {
+                    Icon(Icons.Default.Add, contentDescription = "Tambah", tint = MaterialTheme.colorScheme.primary)
+                }
+            }
+            Spacer(Modifier.height(12.dp))
+            eksemplarList.forEach { eks ->
+                EksemplarItem(eks, onPinjam = { onPinjam(eks.id) }, onKembalikan = { onKembalikan(eks.id) }, onDelete = { onDelete(eks.id) })
+                Spacer(Modifier.height(8.dp))
+            }
+        }
+    }
+}
+
+@Composable
+private fun EksemplarItem(eksemplar: Eksemplar, onPinjam: () -> Unit, onKembalikan: () -> Unit, onDelete: () -> Unit) {
+    val isTersedia = eksemplar.status == Eksemplar.STATUS_TERSEDIA
+    Surface(shape = RoundedCornerShape(8.dp), color = MaterialTheme.colorScheme.surfaceVariant) {
+        Row(Modifier.padding(12.dp).fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+            Column(Modifier.weight(1f)) {
+                Text(eksemplar.kodeEksemplar, style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.Medium)
+                Text(if (isTersedia) "Tersedia" else "Dipinjam", style = MaterialTheme.typography.labelSmall, color = if (isTersedia) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.error)
+            }
+            if (isTersedia) {
+                TextButton(onClick = onPinjam) { Text("Pinjam") }
+            } else {
+                TextButton(onClick = onKembalikan) { Text("Kembalikan") }
+            }
+            IconButton(onClick = onDelete) {
+                Icon(Icons.Default.Delete, contentDescription = "Hapus", tint = MaterialTheme.colorScheme.error, modifier = Modifier.size(20.dp))
+            }
+        }
+    }
+}
+
+@Composable
+private fun AuditLogCard(buku: Buku) {
+    Card(Modifier.fillMaxWidth(), shape = RoundedCornerShape(12.dp), colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)) {
+        Column(Modifier.padding(16.dp)) {
+            Text("Audit Log", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold)
+            Spacer(Modifier.height(12.dp))
+            Text("Before:", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            Text(buku.auditLogBefore, style = MaterialTheme.typography.bodySmall)
+            Spacer(Modifier.height(8.dp))
+            Text("After:", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            Text(buku.auditLogAfter, style = MaterialTheme.typography.bodySmall)
+        }
+    }
+}
+
+@Composable
+private fun DeleteConfirmationDialog(onConfirm: () -> Unit, onDismiss: () -> Unit) {
     AlertDialog(
         onDismissRequest = onDismiss,
+        shape = RoundedCornerShape(16.dp),
         title = { Text(stringResource(R.string.dialog_konfirmasi_hapus)) },
         text = { Text(stringResource(R.string.dialog_hapus_buku_msg)) },
-        confirmButton = {
-            TextButton(onClick = onConfirm) {
-                Text(stringResource(R.string.btn_hapus))
-            }
-        },
-        dismissButton = {
-            TextButton(onClick = onDismiss) {
-                Text(stringResource(R.string.btn_batal))
-            }
-        }
+        confirmButton = { TextButton(onClick = onConfirm) { Text(stringResource(R.string.btn_hapus), color = MaterialTheme.colorScheme.error) } },
+        dismissButton = { TextButton(onClick = onDismiss) { Text(stringResource(R.string.btn_batal)) } }
     )
 }

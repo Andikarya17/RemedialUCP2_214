@@ -10,41 +10,34 @@ import com.example.remedialucp2_214.ui.view.viewmodel.EntryViewModel
 import com.example.remedialucp2_214.ui.view.viewmodel.HomeViewModel
 import com.example.remedialucp2_214.ui.view.viewmodel.KategoriViewModel
 
-/**
- * Factory untuk membuat ViewModel dengan dependency injection manual.
- * Menggunakan ViewModelProvider.Factory untuk inject repository.
- */
 object ViewModelProvider {
 
-    /**
-     * Factory yang menyediakan semua ViewModel dengan repository
-     */
     val Factory: ViewModelProvider.Factory = viewModelFactory {
-        // HomeViewModel
         initializer {
             HomeViewModel(
                 repositoriBuku = aplikasiBuku().container.repositoriBuku,
-                repositoriKategori = aplikasiBuku().container.repositoriKategori
+                repositoriKategori = aplikasiBuku().container.repositoriKategori,
+                repositoriEksemplar = aplikasiBuku().container.repositoriEksemplar
             )
         }
 
-        // EntryViewModel
         initializer {
             EntryViewModel(
                 repositoriBuku = aplikasiBuku().container.repositoriBuku,
-                repositoriKategori = aplikasiBuku().container.repositoriKategori
+                repositoriKategori = aplikasiBuku().container.repositoriKategori,
+                repositoriPengarang = aplikasiBuku().container.repositoriPengarang
             )
         }
 
-        // DetailViewModel
         initializer {
             DetailViewModel(
                 repositoriBuku = aplikasiBuku().container.repositoriBuku,
-                repositoriKategori = aplikasiBuku().container.repositoriKategori
+                repositoriKategori = aplikasiBuku().container.repositoriKategori,
+                repositoriEksemplar = aplikasiBuku().container.repositoriEksemplar,
+                repositoriPengarang = aplikasiBuku().container.repositoriPengarang
             )
         }
 
-        // KategoriViewModel
         initializer {
             KategoriViewModel(
                 repositoriKategori = aplikasiBuku().container.repositoriKategori,
@@ -54,8 +47,5 @@ object ViewModelProvider {
     }
 }
 
-/**
- * Extension function untuk mendapatkan instance AplikasiBuku dari CreationExtras
- */
 fun CreationExtras.aplikasiBuku(): AplikasiBuku =
     (this[ViewModelProvider.AndroidViewModelFactory.APPLICATION_KEY] as AplikasiBuku)

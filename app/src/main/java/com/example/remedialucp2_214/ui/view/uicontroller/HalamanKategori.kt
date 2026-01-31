@@ -9,11 +9,12 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.Category
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material3.AlertDialog
@@ -25,7 +26,6 @@ import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ExposedDropdownMenuBox
 import androidx.compose.material3.ExposedDropdownMenuDefaults
-import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -35,6 +35,7 @@ import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -46,10 +47,10 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.res.dimensionResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.remedialucp2_214.R
 import com.example.remedialucp2_214.room.Kategori
@@ -58,11 +59,7 @@ import com.example.remedialucp2_214.ui.view.viewmodel.DeleteKategoriState
 import com.example.remedialucp2_214.ui.view.viewmodel.KategoriUiState
 import com.example.remedialucp2_214.ui.view.viewmodel.KategoriViewModel
 import com.example.remedialucp2_214.ui.view.viewmodel.provider.ViewModelProvider
-import androidx.compose.ui.unit.dp
 
-/**
- * Halaman Kelola Kategori - CRUD kategori dengan hierarki
- */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun HalamanKategori(
@@ -73,7 +70,6 @@ fun HalamanKategori(
     val uiState by viewModel.uiState.collectAsState()
     val snackbarHostState = remember { SnackbarHostState() }
 
-    // Show snackbar for messages
     LaunchedEffect(uiState.successMessage, uiState.errorMessage) {
         uiState.successMessage?.let {
             snackbarHostState.showSnackbar(it)
@@ -85,16 +81,11 @@ fun HalamanKategori(
         }
     }
 
-    // Handle delete state dialogs
-    HandleDeleteState(
+    DeleteStateDialogs(
         deleteState = uiState.deleteState,
-        onDismiss = { viewModel.resetDeleteState() },
-        onConfirmSoftDelete = { kategoriId ->
-            viewModel.confirmDeleteKategori(kategoriId, softDeleteBooks = true)
-        },
-        onConfirmMoveToTanpaKategori = { kategoriId ->
-            viewModel.confirmDeleteKategori(kategoriId, softDeleteBooks = false)
-        }
+        onDismiss = viewModel::resetDeleteState,
+        onSoftDelete = { viewModel.confirmDeleteKategori(it, softDeleteBooks = true) },
+        onMoveBooks = { viewModel.confirmDeleteKategori(it, softDeleteBooks = false) }
     )
 
     Scaffold(
@@ -105,16 +96,16 @@ fun HalamanKategori(
                 navigateUp = navigateBack
             )
         },
-        snackbarHost = { SnackbarHost(hostState = snackbarHostState) }
+        snackbarHost = { SnackbarHost(snackbarHostState) }
     ) { innerPadding ->
         KategoriContent(
             uiState = uiState,
-            onNamaChange = { viewModel.updateNamaKategori(it) },
-            onParentChange = { viewModel.updateParentKategori(it) },
-            onSaveClick = { viewModel.saveKategori() },
-            onEditClick = { viewModel.startEditKategori(it) },
+            onNamaChange = viewModel::updateNamaKategori,
+            onParentChange = viewModel::updateParentKategori,
+            onSaveClick = viewModel::saveKategori,
+            onEditClick = viewModel::startEditKategori,
             onDeleteClick = { viewModel.initiateDeleteKategori(it.id) },
-            onCancelEdit = { viewModel.resetForm() },
+            onCancelEdit = viewModel::resetForm,
             modifier = Modifier
                 .padding(innerPadding)
                 .fillMaxSize()
@@ -122,83 +113,55 @@ fun HalamanKategori(
     }
 }
 
-/**
- * Handle delete state dan tampilkan dialog yang sesuai
- */
 @Composable
-private fun HandleDeleteState(
+private fun DeleteStateDialogs(
     deleteState: DeleteKategoriState,
     onDismiss: () -> Unit,
-    onConfirmSoftDelete: (Int) -> Unit,
-    onConfirmMoveToTanpaKategori: (Int) -> Unit
+    onSoftDelete: (Int) -> Unit,
+    onMoveBooks: (Int) -> Unit
 ) {
     when (deleteState) {
         is DeleteKategoriState.HasBorrowedBooks -> {
             AlertDialog(
                 onDismissRequest = onDismiss,
+                shape = RoundedCornerShape(16.dp),
                 title = { Text(stringResource(R.string.dialog_konfirmasi_hapus)) },
-                text = {
-                    Text(stringResource(R.string.msg_gagal_hapus_dipinjam))
-                },
-                confirmButton = {
-                    TextButton(onClick = onDismiss) {
-                        Text("OK")
-                    }
-                }
+                text = { Text(stringResource(R.string.msg_gagal_hapus_dipinjam)) },
+                confirmButton = { TextButton(onClick = onDismiss) { Text("OK") } }
             )
         }
-
         is DeleteKategoriState.NeedConfirmation -> {
             AlertDialog(
                 onDismissRequest = onDismiss,
+                shape = RoundedCornerShape(16.dp),
                 title = { Text(stringResource(R.string.dialog_pilih_aksi)) },
-                text = {
-                    Column {
-                        Text("Kategori ini memiliki ${deleteState.bookCount} buku. Pilih aksi:")
-                    }
-                },
+                text = { Text("Kategori ini memiliki ${deleteState.bookCount} buku. Pilih aksi:") },
                 confirmButton = {
                     Column {
-                        TextButton(
-                            onClick = { onConfirmSoftDelete(deleteState.kategoriId) }
-                        ) {
+                        TextButton(onClick = { onSoftDelete(deleteState.kategoriId) }) {
                             Text(stringResource(R.string.dialog_aksi_soft_delete))
                         }
-                        TextButton(
-                            onClick = { onConfirmMoveToTanpaKategori(deleteState.kategoriId) }
-                        ) {
+                        TextButton(onClick = { onMoveBooks(deleteState.kategoriId) }) {
                             Text(stringResource(R.string.dialog_aksi_pindah_kategori))
                         }
                     }
                 },
-                dismissButton = {
-                    TextButton(onClick = onDismiss) {
-                        Text(stringResource(R.string.btn_batal))
-                    }
-                }
+                dismissButton = { TextButton(onClick = onDismiss) { Text(stringResource(R.string.btn_batal)) } }
             )
         }
-
         is DeleteKategoriState.Error -> {
             AlertDialog(
                 onDismissRequest = onDismiss,
+                shape = RoundedCornerShape(16.dp),
                 title = { Text("Error") },
                 text = { Text(deleteState.message) },
-                confirmButton = {
-                    TextButton(onClick = onDismiss) {
-                        Text("OK")
-                    }
-                }
+                confirmButton = { TextButton(onClick = onDismiss) { Text("OK") } }
             )
         }
-
-        else -> { /* No dialog needed */ }
+        else -> {}
     }
 }
 
-/**
- * Konten halaman kategori
- */
 @Composable
 private fun KategoriContent(
     uiState: KategoriUiState,
@@ -210,10 +173,7 @@ private fun KategoriContent(
     onCancelEdit: () -> Unit,
     modifier: Modifier = Modifier
 ) {
-    Column(
-        modifier = modifier.padding(dimensionResource(R.dimen.padding_medium))
-    ) {
-        // Form tambah/edit kategori
+    Column(modifier = modifier.padding(16.dp)) {
         KategoriForm(
             namaKategori = uiState.inputNamaKategori,
             selectedParentId = uiState.selectedParentId,
@@ -229,49 +189,53 @@ private fun KategoriContent(
             onCancelEdit = onCancelEdit
         )
 
-        Spacer(modifier = Modifier.height(dimensionResource(R.dimen.spacing_large)))
+        Spacer(Modifier.height(20.dp))
 
-        // List kategori
-        if (uiState.isLoading) {
-            Box(
-                modifier = Modifier.fillMaxSize(),
-                contentAlignment = Alignment.Center
-            ) {
-                CircularProgressIndicator()
+        when {
+            uiState.isLoading -> {
+                Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                    CircularProgressIndicator()
+                }
             }
-        } else if (uiState.kategoriList.isEmpty()) {
-            Box(
-                modifier = Modifier.fillMaxSize(),
-                contentAlignment = Alignment.Center
-            ) {
-                Text(
-                    text = stringResource(R.string.msg_kategori_kosong),
-                    style = MaterialTheme.typography.bodyLarge
-                )
+            uiState.kategoriList.isEmpty() -> {
+                EmptyKategoriState()
             }
-        } else {
-            LazyColumn(
-                verticalArrangement = Arrangement.spacedBy(dimensionResource(R.dimen.spacing_medium))
-            ) {
-                items(
-                    items = uiState.kategoriList,
-                    key = { it.id }
-                ) { kategori ->
-                    KategoriCard(
-                        kategori = kategori,
-                        allKategori = uiState.kategoriList,
-                        onEditClick = { onEditClick(kategori) },
-                        onDeleteClick = { onDeleteClick(kategori) }
-                    )
+            else -> {
+                LazyColumn(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                    items(uiState.kategoriList, key = { it.id }) { kategori ->
+                        KategoriCard(
+                            kategori = kategori,
+                            parentKategori = uiState.kategoriList.find { it.id == kategori.parentId },
+                            onEditClick = { onEditClick(kategori) },
+                            onDeleteClick = { onDeleteClick(kategori) }
+                        )
+                    }
                 }
             }
         }
     }
 }
 
-/**
- * Form untuk tambah/edit kategori
- */
+@Composable
+private fun EmptyKategoriState() {
+    Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+            Icon(
+                imageVector = Icons.Default.Category,
+                contentDescription = null,
+                modifier = Modifier.size(64.dp),
+                tint = MaterialTheme.colorScheme.outline
+            )
+            Spacer(Modifier.height(16.dp))
+            Text(
+                text = stringResource(R.string.msg_kategori_kosong),
+                style = MaterialTheme.typography.bodyLarge,
+                color = MaterialTheme.colorScheme.outline
+            )
+        }
+    }
+}
+
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun KategoriForm(
@@ -286,79 +250,60 @@ private fun KategoriForm(
     onNamaChange: (String) -> Unit,
     onParentChange: (Int?) -> Unit,
     onSaveClick: () -> Unit,
-    onCancelEdit: () -> Unit,
-    modifier: Modifier = Modifier
+    onCancelEdit: () -> Unit
 ) {
     var expanded by remember { mutableStateOf(false) }
     val selectedParent = kategoriList.find { it.id == selectedParentId }
-    
-    // Filter out current kategori dari parent options jika sedang edit
     val parentOptions = if (editingKategoriId != null) {
         kategoriList.filter { it.id != editingKategoriId }
-    } else {
-        kategoriList
-    }
+    } else kategoriList
 
     Card(
-        modifier = modifier.fillMaxWidth(),
-        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(16.dp),
+        elevation = CardDefaults.cardElevation(defaultElevation = 4.dp)
     ) {
         Column(
-            modifier = Modifier.padding(dimensionResource(R.dimen.padding_medium)),
-            verticalArrangement = Arrangement.spacedBy(dimensionResource(R.dimen.spacing_medium))
+            modifier = Modifier.padding(20.dp),
+            verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
             Text(
-                text = if (editingKategoriId == null) {
-                    stringResource(R.string.btn_tambah_kategori)
-                } else {
-                    "Edit Kategori"
-                },
+                text = if (editingKategoriId == null) stringResource(R.string.btn_tambah_kategori) else "Edit Kategori",
                 style = MaterialTheme.typography.titleMedium,
                 fontWeight = FontWeight.Bold
             )
 
-            // Input nama kategori
             OutlinedTextField(
                 value = namaKategori,
                 onValueChange = onNamaChange,
                 label = { Text(stringResource(R.string.label_nama_kategori)) },
                 isError = isNamaError,
-                supportingText = {
-                    if (isNamaError) {
-                        Text(namaErrorMessage)
-                    }
-                },
+                supportingText = { if (isNamaError) Text(namaErrorMessage) },
                 singleLine = true,
+                shape = RoundedCornerShape(12.dp),
                 modifier = Modifier.fillMaxWidth()
             )
 
-            // Parent kategori dropdown
-            ExposedDropdownMenuBox(
-                expanded = expanded,
-                onExpandedChange = { expanded = !expanded }
-            ) {
+            ExposedDropdownMenuBox(expanded = expanded, onExpandedChange = { expanded = it }) {
                 OutlinedTextField(
                     value = selectedParent?.namaKategori ?: stringResource(R.string.tidak_ada_parent),
                     onValueChange = {},
                     readOnly = true,
                     label = { Text(stringResource(R.string.label_parent_kategori)) },
-                    trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expanded) },
+                    trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded) },
                     isError = cyclicErrorMessage.isNotEmpty(),
                     supportingText = {
                         if (cyclicErrorMessage.isNotEmpty()) {
                             Text(cyclicErrorMessage, color = MaterialTheme.colorScheme.error)
                         }
                     },
+                    shape = RoundedCornerShape(12.dp),
                     modifier = Modifier
                         .menuAnchor(MenuAnchorType.PrimaryNotEditable)
                         .fillMaxWidth()
                 )
 
-                ExposedDropdownMenu(
-                    expanded = expanded,
-                    onDismissRequest = { expanded = false }
-                ) {
-                    // Option untuk tidak ada parent
+                ExposedDropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
                     DropdownMenuItem(
                         text = { Text(stringResource(R.string.tidak_ada_parent)) },
                         onClick = {
@@ -366,8 +311,6 @@ private fun KategoriForm(
                             expanded = false
                         }
                     )
-
-                    // Parent options
                     parentOptions.forEach { kategori ->
                         DropdownMenuItem(
                             text = { Text(kategori.namaKategori) },
@@ -380,14 +323,11 @@ private fun KategoriForm(
                 }
             }
 
-            // Buttons
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(dimensionResource(R.dimen.spacing_medium))
-            ) {
+            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                 if (editingKategoriId != null) {
                     OutlinedButton(
                         onClick = onCancelEdit,
+                        shape = RoundedCornerShape(12.dp),
                         modifier = Modifier.weight(1f)
                     ) {
                         Text(stringResource(R.string.btn_batal))
@@ -397,76 +337,83 @@ private fun KategoriForm(
                 Button(
                     onClick = onSaveClick,
                     enabled = !isSaving && cyclicErrorMessage.isEmpty(),
+                    shape = RoundedCornerShape(12.dp),
                     modifier = Modifier.weight(1f)
                 ) {
-                    Text(
-                        text = if (isSaving) {
-                            stringResource(R.string.loading)
-                        } else {
-                            stringResource(R.string.btn_simpan)
-                        }
-                    )
+                    Text(if (isSaving) stringResource(R.string.loading) else stringResource(R.string.btn_simpan))
                 }
             }
         }
     }
 }
 
-/**
- * Card untuk menampilkan kategori
- */
 @Composable
 private fun KategoriCard(
     kategori: Kategori,
-    allKategori: List<Kategori>,
+    parentKategori: Kategori?,
     onEditClick: () -> Unit,
     onDeleteClick: () -> Unit,
     modifier: Modifier = Modifier
 ) {
-    val parent = allKategori.find { it.id == kategori.parentId }
-    
     Card(
         modifier = modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(12.dp),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
         elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
     ) {
         Row(
             modifier = Modifier
-                .padding(dimensionResource(R.dimen.padding_medium))
+                .padding(16.dp)
                 .fillMaxWidth(),
-            horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically
         ) {
-            Column(modifier = Modifier.weight(1f)) {
+            Surface(
+                shape = RoundedCornerShape(10.dp),
+                color = MaterialTheme.colorScheme.secondaryContainer,
+                modifier = Modifier.size(44.dp)
+            ) {
+                Icon(
+                    imageVector = Icons.Default.Category,
+                    contentDescription = null,
+                    modifier = Modifier.padding(10.dp),
+                    tint = MaterialTheme.colorScheme.onSecondaryContainer
+                )
+            }
+
+            Column(
+                modifier = Modifier
+                    .weight(1f)
+                    .padding(horizontal = 12.dp)
+            ) {
                 Text(
                     text = kategori.namaKategori,
                     style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.Bold,
+                    fontWeight = FontWeight.SemiBold,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis
                 )
-                if (parent != null) {
+                if (parentKategori != null) {
                     Text(
-                        text = "Parent: ${parent.namaKategori}",
+                        text = "Parent: ${parentKategori.namaKategori}",
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                 }
             }
 
-            Row {
-                IconButton(onClick = onEditClick) {
-                    Icon(
-                        imageVector = Icons.Default.Edit,
-                        contentDescription = stringResource(R.string.btn_edit)
-                    )
-                }
-                IconButton(onClick = onDeleteClick) {
-                    Icon(
-                        imageVector = Icons.Default.Delete,
-                        contentDescription = stringResource(R.string.btn_hapus),
-                        tint = MaterialTheme.colorScheme.error
-                    )
-                }
+            IconButton(onClick = onEditClick) {
+                Icon(
+                    imageVector = Icons.Default.Edit,
+                    contentDescription = stringResource(R.string.btn_edit),
+                    tint = MaterialTheme.colorScheme.primary
+                )
+            }
+            IconButton(onClick = onDeleteClick) {
+                Icon(
+                    imageVector = Icons.Default.Delete,
+                    contentDescription = stringResource(R.string.btn_hapus),
+                    tint = MaterialTheme.colorScheme.error
+                )
             }
         }
     }

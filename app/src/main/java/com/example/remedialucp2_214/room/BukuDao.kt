@@ -136,4 +136,13 @@ interface BukuDao {
         AND isDeleted = 0
     """)
     suspend fun countBukuDipinjamInSubtree(parentKategoriId: Int): Int
+
+    @Query("SELECT COUNT(*) FROM buku WHERE kategoriId = :kategoriId AND isDeleted = 0")
+    suspend fun countBooksInKategori(kategoriId: Int): Int
+
+    @Query("UPDATE buku SET kategoriId = :newKategoriId WHERE kategoriId = :oldKategoriId AND isDeleted = 0")
+    suspend fun moveBooksToKategori(oldKategoriId: Int, newKategoriId: Int)
+
+    @Query("UPDATE buku SET isDeleted = 1 WHERE kategoriId = :kategoriId AND isDeleted = 0")
+    suspend fun softDeleteByKategori(kategoriId: Int)
 }

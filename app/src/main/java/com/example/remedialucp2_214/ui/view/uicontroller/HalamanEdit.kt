@@ -12,8 +12,11 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.selection.selectable
 import androidx.compose.foundation.selection.selectableGroup
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Button
+import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -36,9 +39,10 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.res.dimensionResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.remedialucp2_214.R
 import com.example.remedialucp2_214.room.Buku
@@ -48,9 +52,6 @@ import com.example.remedialucp2_214.ui.view.viewmodel.DetailUiState
 import com.example.remedialucp2_214.ui.view.viewmodel.DetailViewModel
 import com.example.remedialucp2_214.ui.view.viewmodel.provider.ViewModelProvider
 
-/**
- * Halaman Edit - form untuk mengedit buku
- */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun HalamanEdit(
@@ -62,19 +63,8 @@ fun HalamanEdit(
     val uiState by viewModel.uiState.collectAsState()
     val snackbarHostState = remember { SnackbarHostState() }
 
-    // Load buku saat pertama kali
-    LaunchedEffect(bukuId) {
-        viewModel.loadBuku(bukuId)
-    }
-
-    // Navigate back setelah berhasil update
-    LaunchedEffect(uiState.isUpdated) {
-        if (uiState.isUpdated) {
-            navigateBack()
-        }
-    }
-
-    // Show error snackbar
+    LaunchedEffect(bukuId) { viewModel.loadBuku(bukuId) }
+    LaunchedEffect(uiState.isUpdated) { if (uiState.isUpdated) navigateBack() }
     LaunchedEffect(uiState.errorMessage) {
         uiState.errorMessage?.let {
             snackbarHostState.showSnackbar(it)
@@ -90,14 +80,14 @@ fun HalamanEdit(
                 navigateUp = navigateBack
             )
         },
-        snackbarHost = { SnackbarHost(hostState = snackbarHostState) }
+        snackbarHost = { SnackbarHost(snackbarHostState) }
     ) { innerPadding ->
         EditContent(
             uiState = uiState,
-            onJudulChange = { viewModel.updateEditJudul(it) },
-            onStatusChange = { viewModel.updateEditStatus(it) },
-            onKategoriChange = { viewModel.updateEditKategori(it) },
-            onUpdateClick = { viewModel.updateBuku() },
+            onJudulChange = viewModel::updateEditJudul,
+            onStatusChange = viewModel::updateEditStatus,
+            onKategoriChange = viewModel::updateEditKategori,
+            onUpdateClick = viewModel::updateBuku,
             modifier = Modifier
                 .padding(innerPadding)
                 .fillMaxSize()
@@ -105,9 +95,6 @@ fun HalamanEdit(
     }
 }
 
-/**
- * Konten form edit
- */
 @Composable
 private fun EditContent(
     uiState: DetailUiState,
@@ -118,10 +105,7 @@ private fun EditContent(
     modifier: Modifier = Modifier
 ) {
     if (uiState.isLoading) {
-        Box(
-            modifier = modifier,
-            contentAlignment = Alignment.Center
-        ) {
+        Box(modifier, contentAlignment = Alignment.Center) {
             CircularProgressIndicator()
         }
         return
@@ -129,112 +113,106 @@ private fun EditContent(
 
     Column(
         modifier = modifier
-            .padding(dimensionResource(R.dimen.padding_medium))
-            .verticalScroll(rememberScrollState()),
-        verticalArrangement = Arrangement.spacedBy(dimensionResource(R.dimen.spacing_medium))
+            .padding(16.dp)
+            .verticalScroll(rememberScrollState())
     ) {
-        // Input Judul
-        OutlinedTextField(
-            value = uiState.editJudul,
-            onValueChange = onJudulChange,
-            label = { Text(stringResource(R.string.label_judul)) },
-            isError = uiState.isJudulError,
-            supportingText = {
-                if (uiState.isJudulError) {
-                    Text(uiState.judulErrorMessage)
+        Card(
+            shape = RoundedCornerShape(16.dp),
+            elevation = CardDefaults.cardElevation(defaultElevation = 4.dp),
+            modifier = Modifier.fillMaxWidth()
+        ) {
+            Column(
+                modifier = Modifier.padding(20.dp),
+                verticalArrangement = Arrangement.spacedBy(16.dp)
+            ) {
+                Text(
+                    text = stringResource(R.string.btn_edit),
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.Bold
+                )
+
+                OutlinedTextField(
+                    value = uiState.editJudul,
+                    onValueChange = onJudulChange,
+                    label = { Text(stringResource(R.string.label_judul)) },
+                    isError = uiState.isJudulError,
+                    supportingText = { if (uiState.isJudulError) Text(uiState.judulErrorMessage) },
+                    singleLine = true,
+                    shape = RoundedCornerShape(12.dp),
+                    modifier = Modifier.fillMaxWidth()
+                )
+
+                Column {
+                    Text(
+                        text = stringResource(R.string.label_status),
+                        style = MaterialTheme.typography.titleSmall,
+                        fontWeight = FontWeight.Medium
+                    )
+                    Spacer(Modifier.height(8.dp))
+                    StatusRadioGroup(
+                        selectedStatus = uiState.editStatus,
+                        onStatusChange = onStatusChange
+                    )
                 }
-            },
-            singleLine = true,
-            modifier = Modifier.fillMaxWidth()
-        )
 
-        // Status Radio Group
-        Text(
-            text = stringResource(R.string.label_status),
-            style = MaterialTheme.typography.titleSmall
-        )
-        EditStatusRadioGroup(
-            selectedStatus = uiState.editStatus,
-            onStatusChange = onStatusChange
-        )
+                KategoriDropdown(
+                    kategoriList = uiState.kategoriList,
+                    selectedKategoriId = uiState.editKategoriId,
+                    onKategoriChange = onKategoriChange,
+                    isError = uiState.isKategoriError,
+                    errorMessage = uiState.kategoriErrorMessage
+                )
+            }
+        }
 
-        // Kategori Dropdown
-        EditKategoriDropdown(
-            kategoriList = uiState.kategoriList,
-            selectedKategoriId = uiState.editKategoriId,
-            onKategoriChange = onKategoriChange,
-            isError = uiState.isKategoriError,
-            errorMessage = uiState.kategoriErrorMessage,
-            modifier = Modifier.fillMaxWidth()
-        )
+        Spacer(Modifier.height(24.dp))
 
-        Spacer(modifier = Modifier.height(dimensionResource(R.dimen.spacing_large)))
-
-        // Update Button
         Button(
             onClick = onUpdateClick,
             enabled = !uiState.isSaving,
+            shape = RoundedCornerShape(12.dp),
             modifier = Modifier.fillMaxWidth()
         ) {
-            Text(
-                text = if (uiState.isSaving) {
-                    stringResource(R.string.loading)
-                } else {
-                    stringResource(R.string.btn_update)
-                }
-            )
+            Text(if (uiState.isSaving) stringResource(R.string.loading) else stringResource(R.string.btn_update))
         }
     }
 }
 
-/**
- * Radio group untuk status buku (edit)
- */
 @Composable
-private fun EditStatusRadioGroup(
+private fun StatusRadioGroup(
     selectedStatus: String,
     onStatusChange: (String) -> Unit,
     modifier: Modifier = Modifier
 ) {
-    val statusOptions = listOf(
+    val options = listOf(
         Buku.STATUS_TERSEDIA to stringResource(R.string.status_tersedia),
         Buku.STATUS_DIPINJAM to stringResource(R.string.status_dipinjam)
     )
 
-    Row(
-        modifier = modifier.selectableGroup(),
-        horizontalArrangement = Arrangement.spacedBy(dimensionResource(R.dimen.spacing_large))
-    ) {
-        statusOptions.forEach { (value, label) ->
+    Row(modifier = modifier.selectableGroup(), horizontalArrangement = Arrangement.spacedBy(24.dp)) {
+        options.forEach { (value, label) ->
             Row(
-                modifier = Modifier
-                    .selectable(
-                        selected = selectedStatus == value,
-                        onClick = { onStatusChange(value) },
-                        role = Role.RadioButton
-                    ),
+                modifier = Modifier.selectable(
+                    selected = selectedStatus == value,
+                    onClick = { onStatusChange(value) },
+                    role = Role.RadioButton
+                ),
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                RadioButton(
-                    selected = selectedStatus == value,
-                    onClick = null
-                )
+                RadioButton(selected = selectedStatus == value, onClick = null)
                 Text(
                     text = label,
                     style = MaterialTheme.typography.bodyMedium,
-                    modifier = Modifier.padding(start = dimensionResource(R.dimen.spacing_small))
+                    modifier = Modifier.padding(start = 8.dp)
                 )
             }
         }
     }
 }
 
-/**
- * Dropdown untuk memilih kategori (edit)
- */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-private fun EditKategoriDropdown(
+private fun KategoriDropdown(
     kategoriList: List<Kategori>,
     selectedKategoriId: Int?,
     onKategoriChange: (Int?) -> Unit,
@@ -243,34 +221,28 @@ private fun EditKategoriDropdown(
     modifier: Modifier = Modifier
 ) {
     var expanded by remember { mutableStateOf(false) }
-    val selectedKategori = kategoriList.find { it.id == selectedKategoriId }
+    val selectedLabel = kategoriList.find { it.id == selectedKategoriId }?.namaKategori ?: ""
 
     ExposedDropdownMenuBox(
         expanded = expanded,
-        onExpandedChange = { expanded = !expanded },
+        onExpandedChange = { expanded = it },
         modifier = modifier
     ) {
         OutlinedTextField(
-            value = selectedKategori?.namaKategori ?: "",
+            value = selectedLabel,
             onValueChange = {},
             readOnly = true,
             label = { Text(stringResource(R.string.label_kategori)) },
-            trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expanded) },
+            trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded) },
             isError = isError,
-            supportingText = {
-                if (isError) {
-                    Text(errorMessage)
-                }
-            },
+            supportingText = { if (isError) Text(errorMessage) },
+            shape = RoundedCornerShape(12.dp),
             modifier = Modifier
                 .menuAnchor(MenuAnchorType.PrimaryNotEditable)
                 .fillMaxWidth()
         )
 
-        ExposedDropdownMenu(
-            expanded = expanded,
-            onDismissRequest = { expanded = false }
-        ) {
+        ExposedDropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
             kategoriList.forEach { kategori ->
                 DropdownMenuItem(
                     text = { Text(kategori.namaKategori) },
