@@ -1,50 +1,13 @@
 package com.example.remedialucp2_214.ui.view.uicontroller
 
-import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Delete
-import androidx.compose.material.icons.filled.Edit
-import androidx.compose.material.icons.filled.Folder
-import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.Button
-import androidx.compose.material3.Card
-import androidx.compose.material3.CardDefaults
-import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.DropdownMenuItem
-import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.ExposedDropdownMenuBox
-import androidx.compose.material3.ExposedDropdownMenuDefaults
-import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.MenuAnchorType
-import androidx.compose.material3.OutlinedButton
-import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.Scaffold
-import androidx.compose.material3.SnackbarHost
-import androidx.compose.material3.SnackbarHostState
-import androidx.compose.material3.Surface
-import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.collectAsState
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
+import androidx.compose.material.icons.filled.*
+import androidx.compose.material3.*
+import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
@@ -60,6 +23,9 @@ import com.example.remedialucp2_214.ui.view.viewmodel.KategoriUiState
 import com.example.remedialucp2_214.ui.view.viewmodel.KategoriViewModel
 import com.example.remedialucp2_214.ui.view.viewmodel.provider.ViewModelProvider
 
+private val cardShape = RoundedCornerShape(16.dp)
+private val fieldShape = RoundedCornerShape(12.dp)
+
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun HalamanKategori(
@@ -67,54 +33,40 @@ fun HalamanKategori(
     modifier: Modifier = Modifier,
     viewModel: KategoriViewModel = viewModel(factory = ViewModelProvider.Factory)
 ) {
-    val uiState by viewModel.uiState.collectAsState()
-    val snackbarHostState = remember { SnackbarHostState() }
+    val state by viewModel.uiState.collectAsState()
+    val snackbar = remember { SnackbarHostState() }
 
-    LaunchedEffect(uiState.successMessage, uiState.errorMessage) {
-        uiState.successMessage?.let {
-            snackbarHostState.showSnackbar(it)
-            viewModel.clearMessages()
-        }
-        uiState.errorMessage?.let {
-            snackbarHostState.showSnackbar(it)
-            viewModel.clearMessages()
-        }
+    LaunchedEffect(state.successMessage, state.errorMessage) {
+        state.successMessage?.let { snackbar.showSnackbar(it); viewModel.clearMessages() }
+        state.errorMessage?.let { snackbar.showSnackbar(it); viewModel.clearMessages() }
     }
 
-    DeleteStateDialogs(
-        deleteState = uiState.deleteState,
+    DeleteDialogs(
+        deleteState = state.deleteState,
         onDismiss = viewModel::resetDeleteState,
         onSoftDelete = { viewModel.confirmDeleteKategori(it, softDeleteBooks = true) },
         onMoveBooks = { viewModel.confirmDeleteKategori(it, softDeleteBooks = false) }
     )
 
     Scaffold(
-        topBar = {
-            AppBar(
-                titleRes = DestinasiKategori.titleRes,
-                canNavigateBack = true,
-                navigateUp = navigateBack
-            )
-        },
-        snackbarHost = { SnackbarHost(snackbarHostState) }
-    ) { innerPadding ->
-        KategoriContent(
-            uiState = uiState,
-            onNamaChange = viewModel::updateNamaKategori,
+        topBar = { AppBar(DestinasiKategori.titleRes, canNavigateBack = true, navigateUp = navigateBack) },
+        snackbarHost = { SnackbarHost(snackbar) }
+    ) { padding ->
+        KategoriBody(
+            state = state,
+            onNameChange = viewModel::updateNamaKategori,
             onParentChange = viewModel::updateParentKategori,
-            onSaveClick = viewModel::saveKategori,
-            onEditClick = viewModel::startEditKategori,
-            onDeleteClick = { viewModel.initiateDeleteKategori(it.id) },
+            onSave = viewModel::saveKategori,
+            onEdit = viewModel::startEditKategori,
+            onDelete = { viewModel.initiateDeleteKategori(it.id) },
             onCancelEdit = viewModel::resetForm,
-            modifier = Modifier
-                .padding(innerPadding)
-                .fillMaxSize()
+            modifier = Modifier.padding(padding).fillMaxSize()
         )
     }
 }
 
 @Composable
-private fun DeleteStateDialogs(
+private fun DeleteDialogs(
     deleteState: DeleteKategoriState,
     onDismiss: () -> Unit,
     onSoftDelete: (Int) -> Unit,
@@ -124,38 +76,38 @@ private fun DeleteStateDialogs(
         is DeleteKategoriState.HasBorrowedBooks -> {
             AlertDialog(
                 onDismissRequest = onDismiss,
-                shape = RoundedCornerShape(16.dp),
+                shape = cardShape,
                 title = { Text(stringResource(R.string.dialog_konfirmasi_hapus)) },
                 text = { Text(stringResource(R.string.msg_gagal_hapus_dipinjam)) },
-                confirmButton = { TextButton(onClick = onDismiss) { Text("OK") } }
+                confirmButton = { TextButton(onDismiss) { Text("OK") } }
             )
         }
         is DeleteKategoriState.NeedConfirmation -> {
             AlertDialog(
                 onDismissRequest = onDismiss,
-                shape = RoundedCornerShape(16.dp),
+                shape = cardShape,
                 title = { Text(stringResource(R.string.dialog_pilih_aksi)) },
                 text = { Text("Kategori ini memiliki ${deleteState.bookCount} buku. Pilih aksi:") },
                 confirmButton = {
                     Column {
-                        TextButton(onClick = { onSoftDelete(deleteState.kategoriId) }) {
+                        TextButton({ onSoftDelete(deleteState.kategoriId) }) {
                             Text(stringResource(R.string.dialog_aksi_soft_delete))
                         }
-                        TextButton(onClick = { onMoveBooks(deleteState.kategoriId) }) {
+                        TextButton({ onMoveBooks(deleteState.kategoriId) }) {
                             Text(stringResource(R.string.dialog_aksi_pindah_kategori))
                         }
                     }
                 },
-                dismissButton = { TextButton(onClick = onDismiss) { Text(stringResource(R.string.btn_batal)) } }
+                dismissButton = { TextButton(onDismiss) { Text(stringResource(R.string.btn_batal)) } }
             )
         }
         is DeleteKategoriState.Error -> {
             AlertDialog(
                 onDismissRequest = onDismiss,
-                shape = RoundedCornerShape(16.dp),
+                shape = cardShape,
                 title = { Text("Error") },
                 text = { Text(deleteState.message) },
-                confirmButton = { TextButton(onClick = onDismiss) { Text("OK") } }
+                confirmButton = { TextButton(onDismiss) { Text("OK") } }
             )
         }
         else -> {}
@@ -163,56 +115,46 @@ private fun DeleteStateDialogs(
 }
 
 @Composable
-private fun KategoriContent(
-    uiState: KategoriUiState,
-    onNamaChange: (String) -> Unit,
+private fun KategoriBody(
+    state: KategoriUiState,
+    onNameChange: (String) -> Unit,
     onParentChange: (Int?) -> Unit,
-    onSaveClick: () -> Unit,
-    onEditClick: (Kategori) -> Unit,
-    onDeleteClick: (Kategori) -> Unit,
+    onSave: () -> Unit,
+    onEdit: (Kategori) -> Unit,
+    onDelete: (Kategori) -> Unit,
     onCancelEdit: () -> Unit,
     modifier: Modifier = Modifier
 ) {
-    Column(modifier = modifier.padding(16.dp)) {
+    Column(modifier.padding(16.dp)) {
         KategoriForm(
-            namaKategori = uiState.inputNamaKategori,
-            selectedParentId = uiState.selectedParentId,
-            kategoriList = uiState.kategoriList,
-            editingKategoriId = uiState.editingKategoriId,
-            isNamaError = uiState.isNamaError,
-            namaErrorMessage = uiState.namaErrorMessage,
-            cyclicErrorMessage = uiState.cyclicErrorMessage,
-            isSaving = uiState.isSaving,
-            onNamaChange = onNamaChange,
+            name = state.inputNamaKategori,
+            parentId = state.selectedParentId,
+            options = state.kategoriList,
+            editingId = state.editingKategoriId,
+            nameError = state.isNamaError,
+            nameErrorMsg = state.namaErrorMessage,
+            cyclicError = state.cyclicErrorMessage,
+            saving = state.isSaving,
+            onNameChange = onNameChange,
             onParentChange = onParentChange,
-            onSaveClick = onSaveClick,
-            onCancelEdit = onCancelEdit
+            onSave = onSave,
+            onCancel = onCancelEdit
         )
 
         Spacer(Modifier.height(20.dp))
 
         when {
-            uiState.isLoading -> {
-                Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                    CircularProgressIndicator()
-                }
-            }
-            uiState.kategoriList.isEmpty() -> {
-                EmptyKategoriState()
-            }
-            else -> {
-                LazyColumn(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                    items(uiState.kategoriList, key = { it.id }) { kategori ->
-                        KategoriCard(
-                            kategori = kategori,
-                            parentKategori = uiState.kategoriList.find { it.id == kategori.parentId },
-                            onEditClick = { onEditClick(kategori) },
-                            onDeleteClick = { onDeleteClick(kategori) }
-                        )
-                    }
-                }
-            }
+            state.isLoading -> LoadingBox()
+            state.kategoriList.isEmpty() -> EmptyKategoriState()
+            else -> KategoriList(state.kategoriList, onEdit, onDelete)
         }
+    }
+}
+
+@Composable
+private fun LoadingBox() {
+    Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+        CircularProgressIndicator()
     }
 }
 
@@ -220,18 +162,23 @@ private fun KategoriContent(
 private fun EmptyKategoriState() {
     Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
         Column(horizontalAlignment = Alignment.CenterHorizontally) {
-            Icon(
-                imageVector = Icons.Default.Folder,
-                contentDescription = null,
-                modifier = Modifier.size(64.dp),
-                tint = MaterialTheme.colorScheme.outline
-            )
+            Icon(Icons.Default.Folder, null, Modifier.size(64.dp), tint = MaterialTheme.colorScheme.outline)
             Spacer(Modifier.height(16.dp))
-            Text(
-                text = stringResource(R.string.msg_kategori_kosong),
-                style = MaterialTheme.typography.bodyLarge,
-                color = MaterialTheme.colorScheme.outline
-            )
+            Text(stringResource(R.string.msg_kategori_kosong), style = MaterialTheme.typography.bodyLarge, color = MaterialTheme.colorScheme.outline)
+        }
+    }
+}
+
+@Composable
+private fun KategoriList(
+    items: List<Kategori>,
+    onEdit: (Kategori) -> Unit,
+    onDelete: (Kategori) -> Unit
+) {
+    LazyColumn(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+        items(items, key = { it.id }) { kat ->
+            val parent = items.find { it.id == kat.parentId }
+            KategoriCard(kat, parent, { onEdit(kat) }, { onDelete(kat) })
         }
     }
 }
@@ -239,108 +186,81 @@ private fun EmptyKategoriState() {
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun KategoriForm(
-    namaKategori: String,
-    selectedParentId: Int?,
-    kategoriList: List<Kategori>,
-    editingKategoriId: Int?,
-    isNamaError: Boolean,
-    namaErrorMessage: String,
-    cyclicErrorMessage: String,
-    isSaving: Boolean,
-    onNamaChange: (String) -> Unit,
+    name: String,
+    parentId: Int?,
+    options: List<Kategori>,
+    editingId: Int?,
+    nameError: Boolean,
+    nameErrorMsg: String,
+    cyclicError: String,
+    saving: Boolean,
+    onNameChange: (String) -> Unit,
     onParentChange: (Int?) -> Unit,
-    onSaveClick: () -> Unit,
-    onCancelEdit: () -> Unit
+    onSave: () -> Unit,
+    onCancel: () -> Unit
 ) {
     var expanded by remember { mutableStateOf(false) }
-    val selectedParent = kategoriList.find { it.id == selectedParentId }
-    val parentOptions = if (editingKategoriId != null) {
-        kategoriList.filter { it.id != editingKategoriId }
-    } else kategoriList
+    val selectedParent = options.find { it.id == parentId }
+    val parentOptions = if (editingId != null) options.filter { it.id != editingId } else options
 
-    Card(
-        modifier = Modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(16.dp),
-        elevation = CardDefaults.cardElevation(defaultElevation = 4.dp)
-    ) {
-        Column(
-            modifier = Modifier.padding(20.dp),
-            verticalArrangement = Arrangement.spacedBy(16.dp)
-        ) {
+    Card(Modifier.fillMaxWidth(), shape = cardShape, elevation = CardDefaults.cardElevation(4.dp)) {
+        Column(Modifier.padding(20.dp), verticalArrangement = Arrangement.spacedBy(16.dp)) {
             Text(
-                text = if (editingKategoriId == null) stringResource(R.string.btn_tambah_kategori) else "Edit Kategori",
+                if (editingId == null) stringResource(R.string.btn_tambah_kategori) else "Edit Kategori",
                 style = MaterialTheme.typography.titleMedium,
                 fontWeight = FontWeight.Bold
             )
 
             OutlinedTextField(
-                value = namaKategori,
-                onValueChange = onNamaChange,
+                value = name,
+                onValueChange = onNameChange,
                 label = { Text(stringResource(R.string.label_nama_kategori)) },
-                isError = isNamaError,
-                supportingText = { if (isNamaError) Text(namaErrorMessage) },
+                isError = nameError,
+                supportingText = { if (nameError) Text(nameErrorMsg) },
                 singleLine = true,
-                shape = RoundedCornerShape(12.dp),
+                shape = fieldShape,
                 modifier = Modifier.fillMaxWidth()
             )
 
-            ExposedDropdownMenuBox(expanded = expanded, onExpandedChange = { expanded = it }) {
+            ExposedDropdownMenuBox(expanded, { expanded = it }) {
                 OutlinedTextField(
                     value = selectedParent?.namaKategori ?: stringResource(R.string.tidak_ada_parent),
                     onValueChange = {},
                     readOnly = true,
                     label = { Text(stringResource(R.string.label_parent_kategori)) },
                     trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded) },
-                    isError = cyclicErrorMessage.isNotEmpty(),
-                    supportingText = {
-                        if (cyclicErrorMessage.isNotEmpty()) {
-                            Text(cyclicErrorMessage, color = MaterialTheme.colorScheme.error)
-                        }
-                    },
-                    shape = RoundedCornerShape(12.dp),
-                    modifier = Modifier
-                        .menuAnchor(MenuAnchorType.PrimaryNotEditable)
-                        .fillMaxWidth()
+                    isError = cyclicError.isNotEmpty(),
+                    supportingText = { if (cyclicError.isNotEmpty()) Text(cyclicError, color = MaterialTheme.colorScheme.error) },
+                    shape = fieldShape,
+                    modifier = Modifier.menuAnchor(MenuAnchorType.PrimaryNotEditable).fillMaxWidth()
                 )
-
-                ExposedDropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
+                ExposedDropdownMenu(expanded, { expanded = false }) {
                     DropdownMenuItem(
                         text = { Text(stringResource(R.string.tidak_ada_parent)) },
-                        onClick = {
-                            onParentChange(null)
-                            expanded = false
-                        }
+                        onClick = { onParentChange(null); expanded = false }
                     )
-                    parentOptions.forEach { kategori ->
+                    parentOptions.forEach { kat ->
                         DropdownMenuItem(
-                            text = { Text(kategori.namaKategori) },
-                            onClick = {
-                                onParentChange(kategori.id)
-                                expanded = false
-                            }
+                            text = { Text(kat.namaKategori) },
+                            onClick = { onParentChange(kat.id); expanded = false }
                         )
                     }
                 }
             }
 
             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                if (editingKategoriId != null) {
-                    OutlinedButton(
-                        onClick = onCancelEdit,
-                        shape = RoundedCornerShape(12.dp),
-                        modifier = Modifier.weight(1f)
-                    ) {
+                if (editingId != null) {
+                    OutlinedButton(onClick = onCancel, shape = fieldShape, modifier = Modifier.weight(1f)) {
                         Text(stringResource(R.string.btn_batal))
                     }
                 }
-
                 Button(
-                    onClick = onSaveClick,
-                    enabled = !isSaving && cyclicErrorMessage.isEmpty(),
-                    shape = RoundedCornerShape(12.dp),
+                    onClick = onSave,
+                    enabled = !saving && cyclicError.isEmpty(),
+                    shape = fieldShape,
                     modifier = Modifier.weight(1f)
                 ) {
-                    Text(if (isSaving) stringResource(R.string.loading) else stringResource(R.string.btn_simpan))
+                    Text(if (saving) stringResource(R.string.loading) else stringResource(R.string.btn_simpan))
                 }
             }
         }
@@ -350,70 +270,44 @@ private fun KategoriForm(
 @Composable
 private fun KategoriCard(
     kategori: Kategori,
-    parentKategori: Kategori?,
-    onEditClick: () -> Unit,
-    onDeleteClick: () -> Unit,
+    parent: Kategori?,
+    onEdit: () -> Unit,
+    onDelete: () -> Unit,
     modifier: Modifier = Modifier
 ) {
     Card(
-        modifier = modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(12.dp),
+        modifier.fillMaxWidth(),
+        shape = fieldShape,
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+        elevation = CardDefaults.cardElevation(2.dp)
     ) {
-        Row(
-            modifier = Modifier
-                .padding(16.dp)
-                .fillMaxWidth(),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Surface(
-                shape = RoundedCornerShape(10.dp),
-                color = MaterialTheme.colorScheme.secondaryContainer,
-                modifier = Modifier.size(44.dp)
-            ) {
-                Icon(
-                    imageVector = Icons.Default.Folder,
-                    contentDescription = null,
-                    modifier = Modifier.padding(10.dp),
-                    tint = MaterialTheme.colorScheme.onSecondaryContainer
-                )
+        Row(Modifier.padding(16.dp).fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+            Surface(shape = RoundedCornerShape(10.dp), color = MaterialTheme.colorScheme.secondaryContainer, modifier = Modifier.size(44.dp)) {
+                Icon(Icons.Default.Folder, null, Modifier.padding(10.dp), tint = MaterialTheme.colorScheme.onSecondaryContainer)
             }
 
-            Column(
-                modifier = Modifier
-                    .weight(1f)
-                    .padding(horizontal = 12.dp)
-            ) {
+            Column(Modifier.weight(1f).padding(horizontal = 12.dp)) {
                 Text(
-                    text = kategori.namaKategori,
+                    kategori.namaKategori,
                     style = MaterialTheme.typography.titleMedium,
                     fontWeight = FontWeight.SemiBold,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis
                 )
-                if (parentKategori != null) {
+                if (parent != null) {
                     Text(
-                        text = "Parent: ${parentKategori.namaKategori}",
+                        "Parent: ${parent.namaKategori}",
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                 }
             }
 
-            IconButton(onClick = onEditClick) {
-                Icon(
-                    imageVector = Icons.Default.Edit,
-                    contentDescription = stringResource(R.string.btn_edit),
-                    tint = MaterialTheme.colorScheme.primary
-                )
+            IconButton(onClick = onEdit) {
+                Icon(Icons.Default.Edit, stringResource(R.string.btn_edit), tint = MaterialTheme.colorScheme.primary)
             }
-            IconButton(onClick = onDeleteClick) {
-                Icon(
-                    imageVector = Icons.Default.Delete,
-                    contentDescription = stringResource(R.string.btn_hapus),
-                    tint = MaterialTheme.colorScheme.error
-                )
+            IconButton(onClick = onDelete) {
+                Icon(Icons.Default.Delete, stringResource(R.string.btn_hapus), tint = MaterialTheme.colorScheme.error)
             }
         }
     }

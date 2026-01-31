@@ -1,51 +1,14 @@
 package com.example.remedialucp2_214.ui.view.uicontroller
 
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Add
-import androidx.compose.material.icons.filled.Delete
-import androidx.compose.material.icons.filled.MenuBook
-import androidx.compose.material.icons.filled.Settings
-import androidx.compose.material3.Card
-import androidx.compose.material3.CardDefaults
-import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.DropdownMenuItem
-import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.ExposedDropdownMenuBox
-import androidx.compose.material3.ExposedDropdownMenuDefaults
-import androidx.compose.material3.FloatingActionButton
-import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.MenuAnchorType
-import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.Scaffold
-import androidx.compose.material3.SnackbarHost
-import androidx.compose.material3.SnackbarHostState
-import androidx.compose.material3.Surface
-import androidx.compose.material3.Text
-import androidx.compose.material3.TopAppBarDefaults
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.collectAsState
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
+import androidx.compose.material.icons.filled.*
+import androidx.compose.material3.*
+import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -63,6 +26,9 @@ import com.example.remedialucp2_214.ui.view.viewmodel.HomeUiState
 import com.example.remedialucp2_214.ui.view.viewmodel.HomeViewModel
 import com.example.remedialucp2_214.ui.view.viewmodel.provider.ViewModelProvider
 
+private val cardShape = RoundedCornerShape(16.dp)
+private val fieldShape = RoundedCornerShape(12.dp)
+
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun HalamanHome(
@@ -72,128 +38,153 @@ fun HalamanHome(
     modifier: Modifier = Modifier,
     viewModel: HomeViewModel = viewModel(factory = ViewModelProvider.Factory)
 ) {
-    val uiState by viewModel.uiState.collectAsState()
+    val state by viewModel.uiState.collectAsState()
     val scrollBehavior = TopAppBarDefaults.enterAlwaysScrollBehavior()
-    val snackbarHostState = remember { SnackbarHostState() }
+    val snackbar = remember { SnackbarHostState() }
 
-    LaunchedEffect(uiState.successMessage, uiState.errorMessage) {
-        uiState.successMessage?.let {
-            snackbarHostState.showSnackbar(it)
-            viewModel.clearMessages()
-        }
-        uiState.errorMessage?.let {
-            snackbarHostState.showSnackbar(it)
-            viewModel.clearMessages()
-        }
+    LaunchedEffect(state.successMessage, state.errorMessage) {
+        state.successMessage?.let { snackbar.showSnackbar(it); viewModel.clearMessages() }
+        state.errorMessage?.let { snackbar.showSnackbar(it); viewModel.clearMessages() }
     }
 
     Scaffold(
         modifier = modifier.nestedScroll(scrollBehavior.nestedScrollConnection),
         topBar = {
-            AppBar(titleRes = DestinasiHome.titleRes, canNavigateBack = false, scrollBehavior = scrollBehavior)
+            AppBar(
+                titleRes = DestinasiHome.titleRes,
+                canNavigateBack = false,
+                scrollBehavior = scrollBehavior
+            )
         },
-        floatingActionButton = {
-            Column(horizontalAlignment = Alignment.End) {
-                FloatingActionButton(
-                    onClick = navigateToKategori,
-                    containerColor = MaterialTheme.colorScheme.secondaryContainer,
-                    modifier = Modifier.padding(bottom = 12.dp)
-                ) {
-                    Icon(Icons.Default.Settings, contentDescription = stringResource(R.string.btn_kelola_kategori))
-                }
-                FloatingActionButton(onClick = navigateToEntry, containerColor = MaterialTheme.colorScheme.primaryContainer) {
-                    Icon(Icons.Default.Add, contentDescription = stringResource(R.string.btn_tambah_buku))
-                }
-            }
-        },
-        snackbarHost = { SnackbarHost(snackbarHostState) }
-    ) { innerPadding ->
-        HomeContent(
-            uiState = uiState,
-            onKategoriSelected = viewModel::setFilterKategori,
+        floatingActionButton = { FabColumn(navigateToKategori, navigateToEntry) },
+        snackbarHost = { SnackbarHost(snackbar) }
+    ) { padding ->
+        HomeBody(
+            state = state,
+            onKategoriSelect = viewModel::setFilterKategori,
             onBukuClick = navigateToDetail,
-            onDeleteClick = viewModel::deleteBuku,
-            modifier = Modifier.padding(innerPadding).fillMaxSize()
+            onDelete = viewModel::deleteBuku,
+            modifier = Modifier.padding(padding).fillMaxSize()
         )
     }
 }
 
 @Composable
-private fun HomeContent(
-    uiState: HomeUiState,
-    onKategoriSelected: (Int?) -> Unit,
-    onBukuClick: (Int) -> Unit,
-    onDeleteClick: (Int) -> Unit,
-    modifier: Modifier = Modifier
-) {
-    Column(modifier = modifier.padding(16.dp)) {
-        KategoriFilterDropdown(
-            kategoriList = uiState.kategoriList,
-            selectedKategoriId = uiState.selectedKategoriId,
-            onKategoriSelected = onKategoriSelected,
-            modifier = Modifier.fillMaxWidth()
-        )
-        Spacer(Modifier.height(16.dp))
-        when {
-            uiState.isLoading -> Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) { CircularProgressIndicator() }
-            uiState.bukuList.isEmpty() -> EmptyState()
-            else -> LazyColumn(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                items(uiState.bukuList, key = { it.buku.id }) { item ->
-                    val counts = uiState.eksemplarCounts[item.buku.id] ?: Pair(0, 0)
-                    BukuCard(
-                        bukuWithKategori = item,
-                        totalEksemplar = counts.first,
-                        dipinjamCount = counts.second,
-                        onClick = { onBukuClick(item.buku.id) },
-                        onDeleteClick = { onDeleteClick(item.buku.id) }
-                    )
-                }
-            }
+private fun FabColumn(onKategori: () -> Unit, onAdd: () -> Unit) {
+    Column(horizontalAlignment = Alignment.End) {
+        FloatingActionButton(
+            onClick = onKategori,
+            containerColor = MaterialTheme.colorScheme.secondaryContainer,
+            modifier = Modifier.padding(bottom = 12.dp)
+        ) {
+            Icon(Icons.Default.Settings, stringResource(R.string.btn_kelola_kategori))
+        }
+        FloatingActionButton(
+            onClick = onAdd,
+            containerColor = MaterialTheme.colorScheme.primaryContainer
+        ) {
+            Icon(Icons.Default.Add, stringResource(R.string.btn_tambah_buku))
         }
     }
 }
 
 @Composable
-private fun EmptyState() {
+private fun HomeBody(
+    state: HomeUiState,
+    onKategoriSelect: (Int?) -> Unit,
+    onBukuClick: (Int) -> Unit,
+    onDelete: (Int) -> Unit,
+    modifier: Modifier = Modifier
+) {
+    Column(modifier.padding(16.dp)) {
+        FilterDropdown(
+            options = state.kategoriList,
+            selected = state.selectedKategoriId,
+            onSelect = onKategoriSelect
+        )
+        Spacer(Modifier.height(16.dp))
+
+        when {
+            state.isLoading -> LoadingBox()
+            state.bukuList.isEmpty() -> EmptyBukuState()
+            else -> BookList(state.bukuList, state.eksemplarCounts, onBukuClick, onDelete)
+        }
+    }
+}
+
+@Composable
+private fun LoadingBox() {
+    Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+        CircularProgressIndicator()
+    }
+}
+
+@Composable
+private fun EmptyBukuState() {
     Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
         Column(horizontalAlignment = Alignment.CenterHorizontally) {
-            Icon(Icons.Default.MenuBook, contentDescription = null, modifier = Modifier.size(64.dp), tint = MaterialTheme.colorScheme.outline)
+            Icon(
+                Icons.Default.MenuBook,
+                null,
+                Modifier.size(64.dp),
+                tint = MaterialTheme.colorScheme.outline
+            )
             Spacer(Modifier.height(16.dp))
-            Text(stringResource(R.string.msg_buku_kosong), style = MaterialTheme.typography.bodyLarge, color = MaterialTheme.colorScheme.outline)
+            Text(
+                stringResource(R.string.msg_buku_kosong),
+                style = MaterialTheme.typography.bodyLarge,
+                color = MaterialTheme.colorScheme.outline
+            )
+        }
+    }
+}
+
+@Composable
+private fun BookList(
+    books: List<BukuWithKategori>,
+    counts: Map<Int, Pair<Int, Int>>,
+    onClick: (Int) -> Unit,
+    onDelete: (Int) -> Unit
+) {
+    LazyColumn(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+        items(books, key = { it.buku.id }) { item ->
+            val (total, borrowed) = counts[item.buku.id] ?: (0 to 0)
+            BookCard(item, total, borrowed, { onClick(item.buku.id) }, { onDelete(item.buku.id) })
         }
     }
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-private fun KategoriFilterDropdown(
-    kategoriList: List<Kategori>,
-    selectedKategoriId: Int?,
-    onKategoriSelected: (Int?) -> Unit,
+private fun FilterDropdown(
+    options: List<Kategori>,
+    selected: Int?,
+    onSelect: (Int?) -> Unit,
     modifier: Modifier = Modifier
 ) {
     var expanded by remember { mutableStateOf(false) }
-    val selectedLabel = kategoriList.find { it.id == selectedKategoriId }?.namaKategori ?: stringResource(R.string.filter_semua_kategori)
+    val label = options.find { it.id == selected }?.namaKategori
+        ?: stringResource(R.string.filter_semua_kategori)
 
-    ExposedDropdownMenuBox(expanded = expanded, onExpandedChange = { expanded = it }, modifier = modifier) {
+    ExposedDropdownMenuBox(expanded, { expanded = it }, modifier) {
         OutlinedTextField(
-            value = selectedLabel,
+            value = label,
             onValueChange = {},
             readOnly = true,
             label = { Text(stringResource(R.string.label_kategori)) },
             trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded) },
-            shape = RoundedCornerShape(12.dp),
+            shape = fieldShape,
             modifier = Modifier.menuAnchor(MenuAnchorType.PrimaryNotEditable).fillMaxWidth()
         )
-        ExposedDropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
+        ExposedDropdownMenu(expanded, { expanded = false }) {
             DropdownMenuItem(
                 text = { Text(stringResource(R.string.filter_semua_kategori)) },
-                onClick = { onKategoriSelected(null); expanded = false }
+                onClick = { onSelect(null); expanded = false }
             )
-            kategoriList.forEach { kategori ->
+            options.forEach { kat ->
                 DropdownMenuItem(
-                    text = { Text(kategori.namaKategori) },
-                    onClick = { onKategoriSelected(kategori.id); expanded = false }
+                    text = { Text(kat.namaKategori) },
+                    onClick = { onSelect(kat.id); expanded = false }
                 )
             }
         }
@@ -201,53 +192,72 @@ private fun KategoriFilterDropdown(
 }
 
 @Composable
-private fun BukuCard(
-    bukuWithKategori: BukuWithKategori,
-    totalEksemplar: Int,
-    dipinjamCount: Int,
+private fun BookCard(
+    item: BukuWithKategori,
+    total: Int,
+    borrowed: Int,
     onClick: () -> Unit,
-    onDeleteClick: () -> Unit,
+    onDelete: () -> Unit,
     modifier: Modifier = Modifier
 ) {
-    val buku = bukuWithKategori.buku
-    val kategori = bukuWithKategori.kategori
-    val tersediaCount = totalEksemplar - dipinjamCount
+    val available = total - borrowed
 
     Card(
-        modifier = modifier.fillMaxWidth().clip(RoundedCornerShape(16.dp)).clickable(onClick = onClick),
-        shape = RoundedCornerShape(16.dp),
+        modifier = modifier.fillMaxWidth().clip(cardShape).clickable(onClick = onClick),
+        shape = cardShape,
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+        elevation = CardDefaults.cardElevation(2.dp)
     ) {
         Row(Modifier.padding(16.dp).fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-            Surface(shape = RoundedCornerShape(12.dp), color = MaterialTheme.colorScheme.primaryContainer, modifier = Modifier.size(48.dp)) {
-                Icon(Icons.Default.MenuBook, contentDescription = null, modifier = Modifier.padding(12.dp), tint = MaterialTheme.colorScheme.onPrimaryContainer)
+            // Icon
+            Surface(shape = fieldShape, color = MaterialTheme.colorScheme.primaryContainer, modifier = Modifier.size(48.dp)) {
+                Icon(Icons.Default.MenuBook, null, Modifier.padding(12.dp), tint = MaterialTheme.colorScheme.onPrimaryContainer)
             }
+
             Spacer(Modifier.width(16.dp))
+
+            // Info
             Column(Modifier.weight(1f)) {
-                Text(buku.judul, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold, maxLines = 2, overflow = TextOverflow.Ellipsis)
+                Text(
+                    item.buku.judul,
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.SemiBold,
+                    maxLines = 2,
+                    overflow = TextOverflow.Ellipsis
+                )
                 Spacer(Modifier.height(4.dp))
-                Text(kategori?.namaKategori ?: "-", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                Text(
+                    item.kategori?.namaKategori ?: "-",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
                 Spacer(Modifier.height(4.dp))
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    EksemplarChip(label = "$tersediaCount Tersedia", isPrimary = true)
-                    if (dipinjamCount > 0) {
-                        EksemplarChip(label = "$dipinjamCount Dipinjam", isPrimary = false)
-                    }
+                    StatusChip("$available Tersedia", primary = true)
+                    if (borrowed > 0) StatusChip("$borrowed Dipinjam", primary = false)
                 }
             }
-            IconButton(onClick = onDeleteClick) {
-                Icon(Icons.Default.Delete, contentDescription = stringResource(R.string.btn_hapus), tint = MaterialTheme.colorScheme.error)
+
+            // Delete button
+            IconButton(onClick = onDelete) {
+                Icon(Icons.Default.Delete, stringResource(R.string.btn_hapus), tint = MaterialTheme.colorScheme.error)
             }
         }
     }
 }
 
 @Composable
-private fun EksemplarChip(label: String, isPrimary: Boolean) {
-    val containerColor = if (isPrimary) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.errorContainer
-    val contentColor = if (isPrimary) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.onErrorContainer
-    Surface(shape = RoundedCornerShape(8.dp), color = containerColor) {
-        Text(label, style = MaterialTheme.typography.labelSmall, color = contentColor, fontWeight = FontWeight.Medium, modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp))
+private fun StatusChip(text: String, primary: Boolean) {
+    val bg = if (primary) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.errorContainer
+    val fg = if (primary) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.onErrorContainer
+
+    Surface(shape = RoundedCornerShape(8.dp), color = bg) {
+        Text(
+            text,
+            style = MaterialTheme.typography.labelSmall,
+            color = fg,
+            fontWeight = FontWeight.Medium,
+            modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
+        )
     }
 }

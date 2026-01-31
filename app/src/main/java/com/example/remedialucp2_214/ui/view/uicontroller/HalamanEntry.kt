@@ -1,17 +1,6 @@
 package com.example.remedialucp2_214.ui.view.uicontroller
 
-import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.ExperimentalLayoutApi
-import androidx.compose.foundation.layout.FlowRow
-import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
@@ -20,30 +9,8 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Person
-import androidx.compose.material3.Button
-import androidx.compose.material3.Card
-import androidx.compose.material3.CardDefaults
-import androidx.compose.material3.DropdownMenuItem
-import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.ExposedDropdownMenuBox
-import androidx.compose.material3.ExposedDropdownMenuDefaults
-import androidx.compose.material3.FilterChip
-import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.MenuAnchorType
-import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.Scaffold
-import androidx.compose.material3.SnackbarHost
-import androidx.compose.material3.SnackbarHostState
-import androidx.compose.material3.Text
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.collectAsState
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
+import androidx.compose.material3.*
+import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
@@ -58,6 +25,9 @@ import com.example.remedialucp2_214.ui.view.viewmodel.EntryUiState
 import com.example.remedialucp2_214.ui.view.viewmodel.EntryViewModel
 import com.example.remedialucp2_214.ui.view.viewmodel.provider.ViewModelProvider
 
+private val cardShape = RoundedCornerShape(16.dp)
+private val fieldShape = RoundedCornerShape(12.dp)
+
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun HalamanEntry(
@@ -65,160 +35,259 @@ fun HalamanEntry(
     modifier: Modifier = Modifier,
     viewModel: EntryViewModel = viewModel(factory = ViewModelProvider.Factory)
 ) {
-    val uiState by viewModel.uiState.collectAsState()
-    val snackbarHostState = remember { SnackbarHostState() }
+    val state by viewModel.uiState.collectAsState()
+    val snackbar = remember { SnackbarHostState() }
 
-    LaunchedEffect(uiState.isSaved) { if (uiState.isSaved) navigateBack() }
-    LaunchedEffect(uiState.errorMessage) {
-        uiState.errorMessage?.let { snackbarHostState.showSnackbar(it); viewModel.clearError() }
+    LaunchedEffect(state.isSaved) {
+        if (state.isSaved) navigateBack()
+    }
+
+    LaunchedEffect(state.errorMessage) {
+        state.errorMessage?.let {
+            snackbar.showSnackbar(it)
+            viewModel.clearError()
+        }
     }
 
     Scaffold(
-        topBar = { AppBar(titleRes = DestinasiEntry.titleRes, canNavigateBack = true, navigateUp = navigateBack) },
-        snackbarHost = { SnackbarHost(snackbarHostState) }
-    ) { innerPadding ->
-        EntryForm(
-            uiState = uiState,
+        topBar = {
+            AppBar(
+                titleRes = DestinasiEntry.titleRes,
+                canNavigateBack = true,
+                navigateUp = navigateBack
+            )
+        },
+        snackbarHost = { SnackbarHost(snackbar) }
+    ) { padding ->
+        FormContent(
+            state = state,
             onJudulChange = viewModel::updateJudul,
             onKategoriChange = viewModel::updateKategori,
             onJumlahChange = viewModel::updateJumlahEksemplar,
             onPengarangToggle = viewModel::togglePengarang,
-            onNewPengarangNameChange = viewModel::updateNewPengarangName,
-            onAddNewPengarang = viewModel::addNewPengarang,
-            onSaveClick = viewModel::saveBuku,
-            modifier = Modifier.padding(innerPadding).fillMaxSize().verticalScroll(rememberScrollState())
+            onNewAuthorChange = viewModel::updateNewPengarangName,
+            onAddAuthor = viewModel::addNewPengarang,
+            onSave = viewModel::saveBuku,
+            modifier = Modifier
+                .padding(padding)
+                .fillMaxSize()
+                .verticalScroll(rememberScrollState())
         )
     }
 }
 
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
-private fun EntryForm(
-    uiState: EntryUiState,
+private fun FormContent(
+    state: EntryUiState,
     onJudulChange: (String) -> Unit,
     onKategoriChange: (Int?) -> Unit,
     onJumlahChange: (String) -> Unit,
     onPengarangToggle: (Int) -> Unit,
-    onNewPengarangNameChange: (String) -> Unit,
-    onAddNewPengarang: () -> Unit,
-    onSaveClick: () -> Unit,
+    onNewAuthorChange: (String) -> Unit,
+    onAddAuthor: () -> Unit,
+    onSave: () -> Unit,
     modifier: Modifier = Modifier
 ) {
-    Column(modifier = modifier.padding(16.dp)) {
-        Card(shape = RoundedCornerShape(16.dp), elevation = CardDefaults.cardElevation(4.dp), modifier = Modifier.fillMaxWidth()) {
-            Column(Modifier.padding(20.dp), verticalArrangement = Arrangement.spacedBy(16.dp)) {
-                Text(stringResource(R.string.btn_tambah_buku), style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+    Column(modifier.padding(16.dp)) {
+        Card(
+            shape = cardShape,
+            elevation = CardDefaults.cardElevation(4.dp),
+            modifier = Modifier.fillMaxWidth()
+        ) {
+            Column(
+                modifier = Modifier.padding(20.dp),
+                verticalArrangement = Arrangement.spacedBy(16.dp)
+            ) {
+                Text(
+                    text = stringResource(R.string.btn_tambah_buku),
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.Bold
+                )
 
+                // Judul input
                 OutlinedTextField(
-                    value = uiState.judul,
+                    value = state.judul,
                     onValueChange = onJudulChange,
                     label = { Text(stringResource(R.string.label_judul)) },
-                    isError = uiState.isJudulError,
-                    supportingText = { if (uiState.isJudulError) Text(uiState.judulErrorMessage) },
+                    isError = state.isJudulError,
+                    supportingText = { if (state.isJudulError) Text(state.judulErrorMessage) },
                     singleLine = true,
-                    shape = RoundedCornerShape(12.dp),
+                    shape = fieldShape,
                     modifier = Modifier.fillMaxWidth()
                 )
 
-                KategoriDropdown(
-                    kategoriList = uiState.kategoriList,
-                    selectedKategoriId = uiState.selectedKategoriId,
-                    onKategoriChange = onKategoriChange,
-                    isError = uiState.isKategoriError,
-                    errorMessage = uiState.kategoriErrorMessage
+                // Kategori dropdown
+                KategoriPicker(
+                    options = state.kategoriList,
+                    selected = state.selectedKategoriId,
+                    onSelect = onKategoriChange,
+                    isError = state.isKategoriError,
+                    errorText = state.kategoriErrorMessage
                 )
 
+                // Jumlah eksemplar
                 OutlinedTextField(
-                    value = uiState.jumlahEksemplar,
-                    onValueChange = { value -> if (value.all { it.isDigit() }) onJumlahChange(value) },
+                    value = state.jumlahEksemplar,
+                    onValueChange = { if (it.all(Char::isDigit)) onJumlahChange(it) },
                     label = { Text("Jumlah Buku") },
-                    isError = uiState.isJumlahError,
-                    supportingText = { 
-                        if (uiState.isJumlahError) Text(uiState.jumlahErrorMessage)
-                        else Text("Jumlah eksemplar fisik yang akan dibuat")
+                    isError = state.isJumlahError,
+                    supportingText = {
+                        Text(
+                            if (state.isJumlahError) state.jumlahErrorMessage
+                            else "Jumlah eksemplar fisik yang akan dibuat"
+                        )
                     },
                     singleLine = true,
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-                    shape = RoundedCornerShape(12.dp),
+                    shape = fieldShape,
                     modifier = Modifier.fillMaxWidth()
                 )
 
-                Column {
-                    Text("Pengarang", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Medium)
-                    Spacer(Modifier.height(8.dp))
-                    Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-                        OutlinedTextField(
-                            value = uiState.newPengarangName,
-                            onValueChange = onNewPengarangNameChange,
-                            label = { Text("Nama pengarang baru") },
-                            singleLine = true,
-                            shape = RoundedCornerShape(12.dp),
-                            modifier = Modifier.weight(1f)
-                        )
-                        Spacer(Modifier.width(8.dp))
-                        IconButton(onClick = onAddNewPengarang) {
-                            Icon(Icons.Default.Add, contentDescription = "Tambah pengarang", tint = MaterialTheme.colorScheme.primary)
-                        }
-                    }
-                    if (uiState.pengarangList.isNotEmpty()) {
-                        Spacer(Modifier.height(12.dp))
-                        Text("Pilih pengarang:", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                        Spacer(Modifier.height(8.dp))
-                        FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                            uiState.pengarangList.forEach { p ->
-                                val isSelected = uiState.selectedPengarangIds.contains(p.id)
-                                FilterChip(
-                                    selected = isSelected,
-                                    onClick = { onPengarangToggle(p.id) },
-                                    label = { Text(p.nama) },
-                                    leadingIcon = { Icon(Icons.Default.Person, contentDescription = null, modifier = Modifier.size(16.dp)) },
-                                    trailingIcon = if (isSelected) {{ Icon(Icons.Default.Check, contentDescription = null, modifier = Modifier.size(16.dp)) }} else null
-                                )
-                            }
-                        }
-                    }
-                }
+                // Pengarang section
+                AuthorSection(
+                    authors = state.pengarangList,
+                    selectedIds = state.selectedPengarangIds,
+                    newAuthorName = state.newPengarangName,
+                    onNewAuthorChange = onNewAuthorChange,
+                    onAddAuthor = onAddAuthor,
+                    onToggle = onPengarangToggle
+                )
             }
         }
 
         Spacer(Modifier.height(24.dp))
 
-        Button(onClick = onSaveClick, enabled = !uiState.isSaving, shape = RoundedCornerShape(12.dp), modifier = Modifier.fillMaxWidth()) {
-            Text(if (uiState.isSaving) stringResource(R.string.loading) else stringResource(R.string.btn_simpan))
+        Button(
+            onClick = onSave,
+            enabled = !state.isSaving,
+            shape = fieldShape,
+            modifier = Modifier.fillMaxWidth()
+        ) {
+            Text(
+                if (state.isSaving) stringResource(R.string.loading)
+                else stringResource(R.string.btn_simpan)
+            )
+        }
+    }
+}
+
+@OptIn(ExperimentalLayoutApi::class)
+@Composable
+private fun AuthorSection(
+    authors: List<com.example.remedialucp2_214.room.Pengarang>,
+    selectedIds: Set<Int>,
+    newAuthorName: String,
+    onNewAuthorChange: (String) -> Unit,
+    onAddAuthor: () -> Unit,
+    onToggle: (Int) -> Unit
+) {
+    Column {
+        Text(
+            text = "Pengarang",
+            style = MaterialTheme.typography.titleSmall,
+            fontWeight = FontWeight.Medium
+        )
+
+        Spacer(Modifier.height(8.dp))
+
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            OutlinedTextField(
+                value = newAuthorName,
+                onValueChange = onNewAuthorChange,
+                label = { Text("Nama pengarang baru") },
+                singleLine = true,
+                shape = fieldShape,
+                modifier = Modifier.weight(1f)
+            )
+            Spacer(Modifier.width(8.dp))
+            IconButton(onClick = onAddAuthor) {
+                Icon(
+                    Icons.Default.Add,
+                    contentDescription = "Tambah pengarang",
+                    tint = MaterialTheme.colorScheme.primary
+                )
+            }
+        }
+
+        if (authors.isNotEmpty()) {
+            Spacer(Modifier.height(12.dp))
+            Text(
+                text = "Pilih pengarang:",
+                style = MaterialTheme.typography.labelMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+            Spacer(Modifier.height(8.dp))
+
+            FlowRow(
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                verticalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                authors.forEach { author ->
+                    val selected = author.id in selectedIds
+                    FilterChip(
+                        selected = selected,
+                        onClick = { onToggle(author.id) },
+                        label = { Text(author.nama) },
+                        leadingIcon = {
+                            Icon(Icons.Default.Person, null, Modifier.size(16.dp))
+                        },
+                        trailingIcon = if (selected) {
+                            { Icon(Icons.Default.Check, null, Modifier.size(16.dp)) }
+                        } else null
+                    )
+                }
+            }
         }
     }
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-private fun KategoriDropdown(
-    kategoriList: List<Kategori>,
-    selectedKategoriId: Int?,
-    onKategoriChange: (Int?) -> Unit,
+private fun KategoriPicker(
+    options: List<Kategori>,
+    selected: Int?,
+    onSelect: (Int?) -> Unit,
     isError: Boolean,
-    errorMessage: String,
+    errorText: String,
     modifier: Modifier = Modifier
 ) {
     var expanded by remember { mutableStateOf(false) }
-    val selectedLabel = kategoriList.find { it.id == selectedKategoriId }?.namaKategori ?: ""
+    val label = options.find { it.id == selected }?.namaKategori ?: ""
 
-    ExposedDropdownMenuBox(expanded = expanded, onExpandedChange = { expanded = it }, modifier = modifier) {
+    ExposedDropdownMenuBox(
+        expanded = expanded,
+        onExpandedChange = { expanded = it },
+        modifier = modifier
+    ) {
         OutlinedTextField(
-            value = selectedLabel,
+            value = label,
             onValueChange = {},
             readOnly = true,
             label = { Text(stringResource(R.string.label_kategori)) },
             trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded) },
             isError = isError,
-            supportingText = { if (isError) Text(errorMessage) },
-            shape = RoundedCornerShape(12.dp),
-            modifier = Modifier.menuAnchor(MenuAnchorType.PrimaryNotEditable).fillMaxWidth()
+            supportingText = { if (isError) Text(errorText) },
+            shape = fieldShape,
+            modifier = Modifier
+                .menuAnchor(MenuAnchorType.PrimaryNotEditable)
+                .fillMaxWidth()
         )
-        ExposedDropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
-            kategoriList.forEach { kategori ->
+
+        ExposedDropdownMenu(
+            expanded = expanded,
+            onDismissRequest = { expanded = false }
+        ) {
+            options.forEach { kategori ->
                 DropdownMenuItem(
                     text = { Text(kategori.namaKategori) },
-                    onClick = { onKategoriChange(kategori.id); expanded = false }
+                    onClick = {
+                        onSelect(kategori.id)
+                        expanded = false
+                    }
                 )
             }
         }
