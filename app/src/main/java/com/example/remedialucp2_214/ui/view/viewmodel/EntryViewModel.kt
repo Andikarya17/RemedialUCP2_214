@@ -3,9 +3,11 @@ package com.example.remedialucp2_214.ui.view.viewmodel
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.remedialucp2_214.repositori.RepositoriBuku
+import com.example.remedialucp2_214.repositori.RepositoriEksemplar
 import com.example.remedialucp2_214.repositori.RepositoriKategori
 import com.example.remedialucp2_214.repositori.RepositoriPengarang
 import com.example.remedialucp2_214.room.Buku
+import com.example.remedialucp2_214.room.Eksemplar
 import com.example.remedialucp2_214.room.Kategori
 import com.example.remedialucp2_214.room.Pengarang
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -22,10 +24,13 @@ data class EntryUiState(
     val pengarangList: List<Pengarang> = emptyList(),
     val selectedPengarangIds: Set<Int> = emptySet(),
     val newPengarangName: String = "",
+    val jumlahEksemplar: String = "1",
     val isJudulError: Boolean = false,
     val isKategoriError: Boolean = false,
+    val isJumlahError: Boolean = false,
     val judulErrorMessage: String = "",
     val kategoriErrorMessage: String = "",
+    val jumlahErrorMessage: String = "",
     val isSaving: Boolean = false,
     val isSaved: Boolean = false,
     val errorMessage: String? = null
@@ -34,7 +39,8 @@ data class EntryUiState(
 class EntryViewModel(
     private val repositoriBuku: RepositoriBuku,
     private val repositoriKategori: RepositoriKategori,
-    private val repositoriPengarang: RepositoriPengarang
+    private val repositoriPengarang: RepositoriPengarang,
+    private val repositoriEksemplar: RepositoriEksemplar
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(EntryUiState())
@@ -67,6 +73,10 @@ class EntryViewModel(
 
     fun updateKategori(kategoriId: Int?) {
         _uiState.value = _uiState.value.copy(selectedKategoriId = kategoriId, isKategoriError = false, kategoriErrorMessage = "")
+    }
+
+    fun updateJumlahEksemplar(jumlah: String) {
+        _uiState.value = _uiState.value.copy(jumlahEksemplar = jumlah, isJumlahError = false, jumlahErrorMessage = "")
     }
 
     fun updateNewPengarangName(name: String) {
@@ -111,6 +121,11 @@ class EntryViewModel(
             _uiState.value = _uiState.value.copy(isKategoriError = true, kategoriErrorMessage = "Kategori harus dipilih")
             valid = false
         }
+        val jumlah = state.jumlahEksemplar.toIntOrNull()
+        if (jumlah == null || jumlah < 1) {
+            _uiState.value = _uiState.value.copy(isJumlahError = true, jumlahErrorMessage = "Jumlah minimal 1")
+            valid = false
+        }
         return valid
     }
 
@@ -123,9 +138,20 @@ class EntryViewModel(
             val result = repositoriBuku.insertBuku(buku)
             if (result.isSuccess) {
                 val bukuId = result.getOrNull()?.toInt() ?: 0
+                
+                // Create Pengarang relations
                 state.selectedPengarangIds.forEach { pengarangId ->
                     repositoriPengarang.addPengarangToBuku(bukuId, pengarangId)
                 }
+                
+                // Create Eksemplar records
+                val jumlah = state.jumlahEksemplar.toIntOrNull() ?: 1
+                for (i in 1..jumlah) {
+                    val kode = "${state.judul.take(3).uppercase()}-${bukuId}-${String.format("%03d", i)}"
+                    val eksemplar = Eksemplar(bukuId = bukuId, kodeEksemplar = kode)
+                    repositoriEksemplar.insertEksemplar(eksemplar)
+                }
+                
                 _uiState.value = _uiState.value.copy(isSaving = false, isSaved = true)
             } else {
                 _uiState.value = _uiState.value.copy(isSaving = false, errorMessage = result.exceptionOrNull()?.message ?: "Gagal menyimpan buku")

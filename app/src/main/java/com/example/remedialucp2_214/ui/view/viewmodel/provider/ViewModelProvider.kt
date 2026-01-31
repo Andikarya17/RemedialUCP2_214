@@ -25,7 +25,8 @@ object ViewModelProvider {
             EntryViewModel(
                 repositoriBuku = aplikasiBuku().container.repositoriBuku,
                 repositoriKategori = aplikasiBuku().container.repositoriKategori,
-                repositoriPengarang = aplikasiBuku().container.repositoriPengarang
+                repositoriPengarang = aplikasiBuku().container.repositoriPengarang,
+                repositoriEksemplar = aplikasiBuku().container.repositoriEksemplar
             )
         }
 

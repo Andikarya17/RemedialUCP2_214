@@ -13,9 +13,8 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.selection.selectable
-import androidx.compose.foundation.selection.selectableGroup
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
@@ -34,7 +33,6 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.MenuAnchorType
 import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.RadioButton
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
@@ -49,12 +47,11 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.remedialucp2_214.R
-import com.example.remedialucp2_214.room.Buku
 import com.example.remedialucp2_214.room.Kategori
 import com.example.remedialucp2_214.ui.view.route.DestinasiEntry
 import com.example.remedialucp2_214.ui.view.viewmodel.EntryUiState
@@ -83,8 +80,8 @@ fun HalamanEntry(
         EntryForm(
             uiState = uiState,
             onJudulChange = viewModel::updateJudul,
-            onStatusChange = viewModel::updateStatus,
             onKategoriChange = viewModel::updateKategori,
+            onJumlahChange = viewModel::updateJumlahEksemplar,
             onPengarangToggle = viewModel::togglePengarang,
             onNewPengarangNameChange = viewModel::updateNewPengarangName,
             onAddNewPengarang = viewModel::addNewPengarang,
@@ -99,8 +96,8 @@ fun HalamanEntry(
 private fun EntryForm(
     uiState: EntryUiState,
     onJudulChange: (String) -> Unit,
-    onStatusChange: (String) -> Unit,
     onKategoriChange: (Int?) -> Unit,
+    onJumlahChange: (String) -> Unit,
     onPengarangToggle: (Int) -> Unit,
     onNewPengarangNameChange: (String) -> Unit,
     onAddNewPengarang: () -> Unit,
@@ -123,12 +120,6 @@ private fun EntryForm(
                     modifier = Modifier.fillMaxWidth()
                 )
 
-                Column {
-                    Text(stringResource(R.string.label_status), style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Medium)
-                    Spacer(Modifier.height(8.dp))
-                    StatusRadioGroup(selectedStatus = uiState.status, onStatusChange = onStatusChange)
-                }
-
                 KategoriDropdown(
                     kategoriList = uiState.kategoriList,
                     selectedKategoriId = uiState.selectedKategoriId,
@@ -137,10 +128,24 @@ private fun EntryForm(
                     errorMessage = uiState.kategoriErrorMessage
                 )
 
+                OutlinedTextField(
+                    value = uiState.jumlahEksemplar,
+                    onValueChange = { value -> if (value.all { it.isDigit() }) onJumlahChange(value) },
+                    label = { Text("Jumlah Buku") },
+                    isError = uiState.isJumlahError,
+                    supportingText = { 
+                        if (uiState.isJumlahError) Text(uiState.jumlahErrorMessage)
+                        else Text("Jumlah eksemplar fisik yang akan dibuat")
+                    },
+                    singleLine = true,
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                    shape = RoundedCornerShape(12.dp),
+                    modifier = Modifier.fillMaxWidth()
+                )
+
                 Column {
                     Text("Pengarang", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Medium)
                     Spacer(Modifier.height(8.dp))
-
                     Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
                         OutlinedTextField(
                             value = uiState.newPengarangName,
@@ -155,7 +160,6 @@ private fun EntryForm(
                             Icon(Icons.Default.Add, contentDescription = "Tambah pengarang", tint = MaterialTheme.colorScheme.primary)
                         }
                     }
-
                     if (uiState.pengarangList.isNotEmpty()) {
                         Spacer(Modifier.height(12.dp))
                         Text("Pilih pengarang:", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
@@ -181,25 +185,6 @@ private fun EntryForm(
 
         Button(onClick = onSaveClick, enabled = !uiState.isSaving, shape = RoundedCornerShape(12.dp), modifier = Modifier.fillMaxWidth()) {
             Text(if (uiState.isSaving) stringResource(R.string.loading) else stringResource(R.string.btn_simpan))
-        }
-    }
-}
-
-@Composable
-private fun StatusRadioGroup(selectedStatus: String, onStatusChange: (String) -> Unit, modifier: Modifier = Modifier) {
-    val options = listOf(
-        Buku.STATUS_TERSEDIA to stringResource(R.string.status_tersedia),
-        Buku.STATUS_DIPINJAM to stringResource(R.string.status_dipinjam)
-    )
-    Row(modifier = modifier.selectableGroup(), horizontalArrangement = Arrangement.spacedBy(24.dp)) {
-        options.forEach { (value, label) ->
-            Row(
-                modifier = Modifier.selectable(selected = selectedStatus == value, onClick = { onStatusChange(value) }, role = Role.RadioButton),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                RadioButton(selected = selectedStatus == value, onClick = null)
-                Text(label, style = MaterialTheme.typography.bodyMedium, modifier = Modifier.padding(start = 8.dp))
-            }
         }
     }
 }
