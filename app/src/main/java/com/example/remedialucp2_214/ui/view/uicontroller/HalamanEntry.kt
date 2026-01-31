@@ -25,9 +25,6 @@ import com.example.remedialucp2_214.ui.view.viewmodel.EntryUiState
 import com.example.remedialucp2_214.ui.view.viewmodel.EntryViewModel
 import com.example.remedialucp2_214.ui.view.viewmodel.provider.ViewModelProvider
 
-private val cardShape = RoundedCornerShape(16.dp)
-private val fieldShape = RoundedCornerShape(12.dp)
-
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun HalamanEntry(
@@ -38,28 +35,16 @@ fun HalamanEntry(
     val state by viewModel.uiState.collectAsState()
     val snackbar = remember { SnackbarHostState() }
 
-    LaunchedEffect(state.isSaved) {
-        if (state.isSaved) navigateBack()
-    }
-
+    LaunchedEffect(state.isSaved) { if (state.isSaved) navigateBack() }
     LaunchedEffect(state.errorMessage) {
-        state.errorMessage?.let {
-            snackbar.showSnackbar(it)
-            viewModel.clearError()
-        }
+        state.errorMessage?.let { snackbar.showSnackbar(it); viewModel.clearError() }
     }
 
     Scaffold(
-        topBar = {
-            AppBar(
-                titleRes = DestinasiEntry.titleRes,
-                canNavigateBack = true,
-                navigateUp = navigateBack
-            )
-        },
+        topBar = { AppBar(DestinasiEntry.titleRes, canNavigateBack = true, navigateUp = navigateBack) },
         snackbarHost = { SnackbarHost(snackbar) }
     ) { padding ->
-        FormContent(
+        FormBody(
             state = state,
             onJudulChange = viewModel::updateJudul,
             onKategoriChange = viewModel::updateKategori,
@@ -68,17 +53,14 @@ fun HalamanEntry(
             onNewAuthorChange = viewModel::updateNewPengarangName,
             onAddAuthor = viewModel::addNewPengarang,
             onSave = viewModel::saveBuku,
-            modifier = Modifier
-                .padding(padding)
-                .fillMaxSize()
-                .verticalScroll(rememberScrollState())
+            modifier = Modifier.padding(padding).fillMaxSize().verticalScroll(rememberScrollState())
         )
     }
 }
 
-@OptIn(ExperimentalLayoutApi::class)
+@OptIn(ExperimentalLayoutApi::class, ExperimentalMaterial3Api::class)
 @Composable
-private fun FormContent(
+private fun FormBody(
     state: EntryUiState,
     onJudulChange: (String) -> Unit,
     onKategoriChange: (Int?) -> Unit,
@@ -91,156 +73,74 @@ private fun FormContent(
 ) {
     Column(modifier.padding(16.dp)) {
         Card(
-            shape = cardShape,
+            shape = RoundedCornerShape(16.dp),
             elevation = CardDefaults.cardElevation(4.dp),
             modifier = Modifier.fillMaxWidth()
         ) {
-            Column(
-                modifier = Modifier.padding(20.dp),
-                verticalArrangement = Arrangement.spacedBy(16.dp)
-            ) {
-                Text(
-                    text = stringResource(R.string.btn_tambah_buku),
-                    style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.Bold
-                )
+            Column(Modifier.padding(20.dp), verticalArrangement = Arrangement.spacedBy(16.dp)) {
+                Text(stringResource(R.string.btn_tambah_buku), style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
 
-                // Judul input
                 OutlinedTextField(
-                    value = state.judul,
-                    onValueChange = onJudulChange,
+                    value = state.judul, onValueChange = onJudulChange,
                     label = { Text(stringResource(R.string.label_judul)) },
                     isError = state.isJudulError,
                     supportingText = { if (state.isJudulError) Text(state.judulErrorMessage) },
-                    singleLine = true,
-                    shape = fieldShape,
+                    singleLine = true, shape = RoundedCornerShape(12.dp),
                     modifier = Modifier.fillMaxWidth()
                 )
 
-                // Kategori dropdown
-                KategoriPicker(
-                    options = state.kategoriList,
-                    selected = state.selectedKategoriId,
-                    onSelect = onKategoriChange,
-                    isError = state.isKategoriError,
-                    errorText = state.kategoriErrorMessage
-                )
+                KategoriPicker(state.kategoriList, state.selectedKategoriId, onKategoriChange, state.isKategoriError, state.kategoriErrorMessage)
 
-                // Jumlah eksemplar
                 OutlinedTextField(
                     value = state.jumlahEksemplar,
                     onValueChange = { if (it.all(Char::isDigit)) onJumlahChange(it) },
                     label = { Text("Jumlah Buku") },
                     isError = state.isJumlahError,
-                    supportingText = {
-                        Text(
-                            if (state.isJumlahError) state.jumlahErrorMessage
-                            else "Jumlah eksemplar fisik yang akan dibuat"
-                        )
-                    },
-                    singleLine = true,
-                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-                    shape = fieldShape,
-                    modifier = Modifier.fillMaxWidth()
+                    supportingText = { Text(if (state.isJumlahError) state.jumlahErrorMessage else "Jumlah eksemplar fisik") },
+                    singleLine = true, keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                    shape = RoundedCornerShape(12.dp), modifier = Modifier.fillMaxWidth()
                 )
 
-                // Pengarang section
-                AuthorSection(
-                    authors = state.pengarangList,
-                    selectedIds = state.selectedPengarangIds,
-                    newAuthorName = state.newPengarangName,
-                    onNewAuthorChange = onNewAuthorChange,
-                    onAddAuthor = onAddAuthor,
-                    onToggle = onPengarangToggle
-                )
+                Column {
+                    Text("Pengarang", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Medium)
+                    Spacer(Modifier.height(8.dp))
+                    Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                        OutlinedTextField(
+                            value = state.newPengarangName, onValueChange = onNewAuthorChange,
+                            label = { Text("Nama pengarang baru") },
+                            singleLine = true, shape = RoundedCornerShape(12.dp),
+                            modifier = Modifier.weight(1f)
+                        )
+                        Spacer(Modifier.width(8.dp))
+                        IconButton(onClick = onAddAuthor) {
+                            Icon(Icons.Default.Add, "Tambah", tint = MaterialTheme.colorScheme.primary)
+                        }
+                    }
+
+                    if (state.pengarangList.isNotEmpty()) {
+                        Spacer(Modifier.height(12.dp))
+                        Text("Pilih pengarang:", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        Spacer(Modifier.height(8.dp))
+                        FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                            state.pengarangList.forEach { author ->
+                                val selected = author.id in state.selectedPengarangIds
+                                FilterChip(
+                                    selected = selected, onClick = { onPengarangToggle(author.id) },
+                                    label = { Text(author.nama) },
+                                    leadingIcon = { Icon(Icons.Default.Person, null, Modifier.size(16.dp)) },
+                                    trailingIcon = if (selected) { { Icon(Icons.Default.Check, null, Modifier.size(16.dp)) } } else null
+                                )
+                            }
+                        }
+                    }
+                }
             }
         }
 
         Spacer(Modifier.height(24.dp))
 
-        Button(
-            onClick = onSave,
-            enabled = !state.isSaving,
-            shape = fieldShape,
-            modifier = Modifier.fillMaxWidth()
-        ) {
-            Text(
-                if (state.isSaving) stringResource(R.string.loading)
-                else stringResource(R.string.btn_simpan)
-            )
-        }
-    }
-}
-
-@OptIn(ExperimentalLayoutApi::class)
-@Composable
-private fun AuthorSection(
-    authors: List<com.example.remedialucp2_214.room.Pengarang>,
-    selectedIds: Set<Int>,
-    newAuthorName: String,
-    onNewAuthorChange: (String) -> Unit,
-    onAddAuthor: () -> Unit,
-    onToggle: (Int) -> Unit
-) {
-    Column {
-        Text(
-            text = "Pengarang",
-            style = MaterialTheme.typography.titleSmall,
-            fontWeight = FontWeight.Medium
-        )
-
-        Spacer(Modifier.height(8.dp))
-
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            OutlinedTextField(
-                value = newAuthorName,
-                onValueChange = onNewAuthorChange,
-                label = { Text("Nama pengarang baru") },
-                singleLine = true,
-                shape = fieldShape,
-                modifier = Modifier.weight(1f)
-            )
-            Spacer(Modifier.width(8.dp))
-            IconButton(onClick = onAddAuthor) {
-                Icon(
-                    Icons.Default.Add,
-                    contentDescription = "Tambah pengarang",
-                    tint = MaterialTheme.colorScheme.primary
-                )
-            }
-        }
-
-        if (authors.isNotEmpty()) {
-            Spacer(Modifier.height(12.dp))
-            Text(
-                text = "Pilih pengarang:",
-                style = MaterialTheme.typography.labelMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
-            )
-            Spacer(Modifier.height(8.dp))
-
-            FlowRow(
-                horizontalArrangement = Arrangement.spacedBy(8.dp),
-                verticalArrangement = Arrangement.spacedBy(8.dp)
-            ) {
-                authors.forEach { author ->
-                    val selected = author.id in selectedIds
-                    FilterChip(
-                        selected = selected,
-                        onClick = { onToggle(author.id) },
-                        label = { Text(author.nama) },
-                        leadingIcon = {
-                            Icon(Icons.Default.Person, null, Modifier.size(16.dp))
-                        },
-                        trailingIcon = if (selected) {
-                            { Icon(Icons.Default.Check, null, Modifier.size(16.dp)) }
-                        } else null
-                    )
-                }
-            }
+        Button(onClick = onSave, enabled = !state.isSaving, shape = RoundedCornerShape(12.dp), modifier = Modifier.fillMaxWidth()) {
+            Text(if (state.isSaving) stringResource(R.string.loading) else stringResource(R.string.btn_simpan))
         }
     }
 }
@@ -248,47 +148,23 @@ private fun AuthorSection(
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun KategoriPicker(
-    options: List<Kategori>,
-    selected: Int?,
-    onSelect: (Int?) -> Unit,
-    isError: Boolean,
-    errorText: String,
-    modifier: Modifier = Modifier
+    options: List<Kategori>, selected: Int?, onSelect: (Int?), isError: Boolean, errorText: String
 ) {
     var expanded by remember { mutableStateOf(false) }
     val label = options.find { it.id == selected }?.namaKategori ?: ""
 
-    ExposedDropdownMenuBox(
-        expanded = expanded,
-        onExpandedChange = { expanded = it },
-        modifier = modifier
-    ) {
+    ExposedDropdownMenuBox(expanded, { expanded = it }) {
         OutlinedTextField(
-            value = label,
-            onValueChange = {},
-            readOnly = true,
+            value = label, onValueChange = {}, readOnly = true,
             label = { Text(stringResource(R.string.label_kategori)) },
             trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded) },
-            isError = isError,
-            supportingText = { if (isError) Text(errorText) },
-            shape = fieldShape,
-            modifier = Modifier
-                .menuAnchor(MenuAnchorType.PrimaryNotEditable)
-                .fillMaxWidth()
+            isError = isError, supportingText = { if (isError) Text(errorText) },
+            shape = RoundedCornerShape(12.dp),
+            modifier = Modifier.menuAnchor(MenuAnchorType.PrimaryNotEditable).fillMaxWidth()
         )
-
-        ExposedDropdownMenu(
-            expanded = expanded,
-            onDismissRequest = { expanded = false }
-        ) {
-            options.forEach { kategori ->
-                DropdownMenuItem(
-                    text = { Text(kategori.namaKategori) },
-                    onClick = {
-                        onSelect(kategori.id)
-                        expanded = false
-                    }
-                )
+        ExposedDropdownMenu(expanded, { expanded = false }) {
+            options.forEach { kat ->
+                DropdownMenuItem(text = { Text(kat.namaKategori) }, onClick = { onSelect(kat.id); expanded = false })
             }
         }
     }
